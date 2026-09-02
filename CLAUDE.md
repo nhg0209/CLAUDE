@@ -2,6 +2,23 @@
 
 이 저장소는 **Obsidian 볼트**입니다. RL(강화학습) 논문을 읽으며 정리한 노트를 담습니다.
 
+## 학습 목표 (문맥)
+
+사용자의 RL 학습은 **목적 지향적**입니다. 일반 교양이 아니라 다음을 위한 것:
+
+> RL 사전지식 0에서 출발해, TM07 리포트
+> *"Reinforcement Learning End-to-End Autonomous Racing Architecture with Asymmetric SAC and Sim-to-Real Pipeline"*
+> 수준의 스택을 직접 재현·개선한다.
+
+상세 로드맵은 `docs/RL_ROADMAP.md`에 있습니다. **논문을 설명할 때 항상 이 목표와 연결**하세요.
+"이 개념이 TM07의 어느 구성요소에 해당하는가"를 짚어주면 훨씬 잘 붙습니다.
+
+우선순위 논문: SAC(1801.01290) → SAC v2(1812.05905) → Asymmetric Actor-Critic(1710.06542) → TM07
+
+### 용어 규칙
+로드맵의 방침을 따릅니다 — **RL 용어는 영문 원문 그대로**, 설명만 한국어로.
+(`policy`를 "정책"으로 번역하면 논문·코드와 매칭이 안 되기 때문)
+
 ## 저장소의 역할
 
 사용자는 로컬 PC의 Obsidian에서 이 볼트를 엽니다. Claude는 원격 세션에서 동작하므로
@@ -23,6 +40,7 @@ Claude: 정리 → .md 작성 → commit → push
 | `Concepts/` | 개념 노트. 여러 논문이 공유하는 개념을 독립 노트로 분리 |
 | `Questions/` | 질문 로그 색인 |
 | `Templates/` | 노트 템플릿 |
+| `docs/` | 기존 문서. `RL_ROADMAP.md` — 사용자가 직접 작성. **함부로 수정하지 말 것** |
 
 ## 작성 규칙
 

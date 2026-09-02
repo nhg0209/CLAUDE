@@ -12,6 +12,41 @@ tags: [MOC]
 
 ---
 
+## 🎯 현재 학습 경로 — E2E 자율주행 레이싱
+
+목표: **[[RL 로드맵|TM07 리포트]]** (Asymmetric SAC + Sim-to-Real) 수준의 스택을 재현·개선.
+전체 로드맵은 [`docs/RL_ROADMAP.md`](../docs/RL_ROADMAP.md) 참고.
+
+> [!important] 우선순위 논문 4편
+> 아래 순서대로 읽습니다. 위 계보도는 이 4편의 **배경**을 잡기 위한 지도입니다.
+>
+> 1. [[SAC (Haarnoja 2018)]] — `arXiv:1801.01290` §3.2 → §4 → Appendix C
+> 2. [[SAC v2 (Haarnoja 2018)]] — `arXiv:1812.05905`, auto entropy tuning
+> 3. [[Asymmetric Actor-Critic (Pinto 2017)]] — `arXiv:1710.06542`, 짧음
+> 4. [[TM07 리포트 (2025)]] — Asymmetric SAC 레이싱 아키텍처
+
+### 리포트 구성요소 → 필요한 개념
+
+| TM07의 구성요소 | 읽어야 할 것 |
+|---|---|
+| Soft Actor-Critic | [[SAC (Haarnoja 2018)]], [[Maximum Entropy RL]] |
+| Actor는 LiDAR, Critic은 24-dim privileged obs | [[Asymmetric Actor-Critic (Pinto 2017)]], [[POMDP]] |
+| history $N=4$ frame stacking | [[POMDP]] |
+| Two-Phase Automatic Curriculum | [[Curriculum Learning]] |
+| $R = r_{\text{progress}} + r_{\text{safety}} + r_{\text{TTC}} + r_{\text{overtake}}$ | [[Reward Shaping]], [[Potential-based Shaping]] |
+| steering smoothness penalty | [[Action Smoothness]] — sim2real 필수 |
+| Opponent lookahead 랜덤화 | [[Domain Randomization]] |
+
+---
+
+## 🔧 Sim-to-Real
+
+- [[Domain Randomization (Tobin 2017)]] — 시뮬레이터 파라미터를 흔들어 실물 격차 흡수
+- [[Asymmetric Actor-Critic (Pinto 2017)]] — 학습 때만 특권 정보를 쓰는 구조
+- [[Action Smoothness]] — 실물 액추에이터 보호 및 진동 억제
+
+---
+
 ## 📐 계보: Policy Gradient 계열
 
 ```mermaid
@@ -36,7 +71,8 @@ graph TD
 - [[PPO (Schulman 2017)]] — TRPO를 clipping으로 단순화, 사실상 표준
 - [[DDPG (Lillicrap 2015)]] — 연속 행동공간, off-policy
 - [[TD3 (Fujimoto 2018)]] — DDPG의 과대추정 편향 수정
-- [[SAC (Haarnoja 2018)]] — 최대 엔트로피 목적함수
+- [[SAC (Haarnoja 2018)]] — 최대 엔트로피 목적함수 ⭐ **현재 목표 논문**
+- [[SAC v2 (Haarnoja 2018)]] — 온도 $\alpha$ 자동 조정 ⭐
 
 **관통하는 질문**: 정책을 얼마나 크게 업데이트해도 안전한가?
 → NPG(자연 그래디언트) → TRPO(신뢰 영역) → PPO(클리핑)로 **같은 문제의 답이 점점 싸지는** 흐름.
@@ -103,5 +139,6 @@ graph LR
 
 ## 📚 참고
 
+- [`docs/RL_ROADMAP.md`](../docs/RL_ROADMAP.md) — Stage 1~7 학습 로드맵
 - [[기호 사전]] — 공통 표기법
 - [[질문 로그]] — 지금까지 나온 질문 전체
