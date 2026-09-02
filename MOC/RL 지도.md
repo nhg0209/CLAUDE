@@ -14,8 +14,10 @@ tags: [MOC]
 
 ## 🎯 현재 학습 경로 — E2E 자율주행 레이싱
 
-목표: **[[RL 로드맵|TM07 리포트]]** (Asymmetric SAC + Sim-to-Real) 수준의 스택을 재현·개선.
-전체 로드맵은 [`docs/RL_ROADMAP.md`](../docs/RL_ROADMAP.md) 참고.
+목표: TM07 리포트(Asymmetric SAC + Sim-to-Real) 수준의 스택을 재현·개선.
+
+- **[[프로젝트 스택]]** — 하드웨어·기존 코드·전환 계획 전체 지도
+- [`docs/RL_ROADMAP.md`](../docs/RL_ROADMAP.md) — Stage 1~7 학습 로드맵
 
 > [!important] 우선순위 논문 4편
 > 아래 순서대로 읽습니다. 위 계보도는 이 4편의 **배경**을 잡기 위한 지도입니다.
@@ -139,6 +141,7 @@ graph LR
 
 ## 📚 참고
 
+- [[프로젝트 스택]] — 프로젝트 전체 스택
 - [`docs/RL_ROADMAP.md`](../docs/RL_ROADMAP.md) — Stage 1~7 학습 로드맵
 - [[기호 사전]] — 공통 표기법
 - [[질문 로그]] — 지금까지 나온 질문 전체

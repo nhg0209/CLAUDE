@@ -10,7 +10,7 @@
 > *"Reinforcement Learning End-to-End Autonomous Racing Architecture with Asymmetric SAC and Sim-to-Real Pipeline"*
 > 수준의 스택을 직접 재현·개선한다.
 
-상세 로드맵은 `docs/RL_ROADMAP.md`에 있습니다. **논문을 설명할 때 항상 이 목표와 연결**하세요.
+프로젝트 스택 전체는 `MOC/프로젝트 스택.md`, 상세 로드맵은 `docs/RL_ROADMAP.md`에 있습니다. **논문을 설명할 때 항상 이 목표와 연결**하세요.
 "이 개념이 TM07의 어느 구성요소에 해당하는가"를 짚어주면 훨씬 잘 붙습니다.
 
 우선순위 논문: SAC(1801.01290) → SAC v2(1812.05905) → Asymmetric Actor-Critic(1710.06542) → TM07
