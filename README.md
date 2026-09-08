@@ -1,1 +1,155 @@
-# CLAUDE
+# 오프로드 주행 논문 아카이브 (Obsidian 볼트)
+
+**오프로드 자율주행(off-road autonomous driving)** 논문을 읽으며 정리한 노트를 담는 **Obsidian 볼트**입니다.
+Claude가 원격 세션에서 `.md`를 작성해 push하고, 로컬 Obsidian이 pull로 받아 봅니다.
+
+```
+Claude (원격)  ──push──▶  GitHub (OFFROAD 브랜치)  ──pull──▶  Obsidian (로컬)
+```
+
+> [!important] 볼트가 두 개입니다
+> 같은 저장소의 **`RL` 브랜치에 RL 논문 볼트**가 따로 있습니다.
+> 브랜치가 다르면 **작업 디렉터리도 따로**여야 하므로, 아래처럼 **두 번 클론**합니다.
+> Obsidian에서도 **각각 별도 vault로** 엽니다.
+
+---
+
+## 처음 세팅 (한 번만)
+
+### 1. 볼트 클론
+
+노트를 두고 싶은 위치에서:
+
+```bash
+git clone -b OFFROAD https://github.com/nhg0209/CLAUDE.git Offroad-Papers
+cd Offroad-Papers
+```
+
+> **macOS 사용자**: 한글 파일명이 자모 분리되는 것을 막으려면
+> ```bash
+> git config core.precomposeunicode true
+> ```
+
+RL 볼트를 아직 안 받았다면 **다른 폴더에** 따로:
+
+```bash
+git clone -b RL https://github.com/nhg0209/CLAUDE.git RL-Papers
+```
+
+> [!tip] 이미 RL 볼트를 클론해 뒀다면
+> 같은 폴더에서 브랜치를 갈아타면 **RL 노트가 사라진 것처럼 보입니다** (정상입니다 — 다른 브랜치니까).
+> 두 볼트를 동시에 열고 싶으면 위처럼 **폴더를 두 개** 두거나, `git worktree`를 씁니다:
+> ```bash
+> cd RL-Papers
+> git worktree add ../Offroad-Papers OFFROAD
+> ```
+
+### 2. Obsidian에서 열기
+
+Obsidian 실행 → **Open folder as vault** → 방금 클론한 `Offroad-Papers` 폴더 선택.
+RL 볼트와 **별개의 vault**로 열립니다. 좌하단 vault 스위처로 오갈 수 있습니다.
+
+### 3. Obsidian Git 플러그인 (자동 pull)
+
+이걸 설정해야 Claude가 push한 내용이 알아서 내려옵니다.
+
+1. **Settings → Community plugins → Turn on community plugins**
+2. **Browse** → `Obsidian Git` 검색 → Install → Enable
+3. 플러그인 설정에서:
+
+| 항목 | 값 |
+|---|---|
+| Auto pull interval (minutes) | `5` |
+| Pull updates on startup | ✅ 켜기 |
+| Auto backup after file change | ❌ 끄기 (내 수정과 Claude push가 충돌할 수 있음) |
+
+**vault마다 따로 설정해야 합니다.** RL 볼트에서 켠 것이 이쪽에 적용되지 않습니다.
+
+---
+
+## 권장 플러그인
+
+| 플러그인 | 용도 |
+|---|---|
+| **Obsidian Git** | 필수. 자동 동기화 |
+| **Dataview** | frontmatter로 논문 목록 쿼리 (아래 예시) |
+| **Excalidraw** | 파이프라인 구조도 손그림 |
+| **Zotero Integration** | 논문 서지·PDF 주석 연동 |
+| **Latex Suite** | 수식 입력 가속 (RL 볼트만큼은 아니지만 B축에서 쓰임) |
+
+### Dataview 쿼리 예시
+
+아무 노트에나 아래를 넣으면 축별 논문 목록이 생깁니다.
+
+````
+```dataview
+TABLE 축, 연도, 플랫폼, 이해도
+FROM #paper
+SORT 연도 DESC
+```
+````
+
+A축(지형 인지)만 보려면:
+
+````
+```dataview
+TABLE 연도, 지형, supervision
+FROM #paper
+WHERE 축 = "A"
+SORT 연도 ASC
+```
+````
+
+아직 안 잡힌 논문만:
+
+````
+```dataview
+LIST FROM #paper WHERE 이해도 = "🔴"
+```
+````
+
+---
+
+## 폴더 구조
+
+| 경로 | 용도 |
+|---|---|
+| `MOC/` | 지도 노트 — [[오프로드 지도]], [[용어 사전]], [[읽기 경로]] |
+| `Papers/` | 논문 한 편당 노트 하나 |
+| `Concepts/` | 여러 논문이 공유하는 개념 |
+| `Questions/` | 질문 로그 색인 |
+| `Templates/` | 논문 정리 템플릿 |
+
+## 여기서부터 보세요
+
+- **[[읽기 경로]]** — 뭘 먼저 읽을지. **처음이면 여기부터**
+- **[[오프로드 지도]]** — 분야 전체 지도. 세 축의 계보와 검증된 논문 색인
+- **[[용어 사전]]** — traversability·slip·CVaR 등 이 분야 표기 대조표
+- **[[질문 로그]]** — 지금까지 나온 질문 전체
+
+## 이 볼트의 목표
+
+**연구 주제 탐색.** 특정 시스템을 재현하는 것이 아니라,
+오프로드 주행에서 **무엇이 열린 문제인지**를 파악하고 붙을 자리를 정하는 것.
+
+그래서 논문 하나의 완결성보다 **계보와 대조**가 우선입니다.
+그래프 뷰의 빈 노드가 "다음에 읽을 논문"입니다.
+
+---
+
+## 충돌이 났을 때
+
+내가 로컬에서 노트를 고쳤는데 Claude도 같은 파일을 고쳤다면 pull이 실패합니다.
+
+```bash
+git stash          # 내 수정 잠시 치우기
+git pull
+git stash pop      # 되돌리고 충돌 부분 수동 병합
+```
+
+**예방**: 내가 직접 고칠 노트는 Claude에게 미리 알려주세요. 그 파일은 건드리지 않겠습니다.
+
+## PDF에 대해
+
+`.gitignore`가 `*.pdf`를 제외합니다. 저장소 용량을 지키기 위해서입니다.
+논문 PDF도 함께 관리하고 싶으면 `.gitignore`에서 해당 줄을 지우세요.

@@ -1,0 +1,15 @@
+# Obsidian - 기기별 상태 파일 (동기화하면 충돌 남)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.obsidian/plugins/*/data.json
+
+# Obsidian 휴지통
+.trash/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 논문 PDF (용량 문제 — 필요하면 이 줄을 지우세요)
+*.pdf
