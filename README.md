@@ -301,6 +301,13 @@ LIST FROM #paper WHERE 이해도 = "🔴"
 
 ⚠️ **볼트 하나 안에서만 동작합니다.** 다른 폴더의 볼트로는 안 넘어갑니다.
 
+> [!tip] 새 노트가 만들어질 위치를 `Papers/`로 지정해 두세요
+> [[논문 목록]]의 후보 목록은 전부 **미해결 링크**입니다. 논문을 읽기 시작할 때 그 링크를
+> 클릭하면 노트가 생기는데, 기본값이면 볼트 최상단에 만들어집니다.
+>
+> **Settings → Files and links → Default location for new notes** → *In the folder specified below*
+> → `Papers` 로 지정하면 알아서 제자리에 들어갑니다.
+
 ### 콜아웃 `> [!note]`
 
 인용문 앞에 종류를 적으면 색깔 상자로 렌더링됩니다.
