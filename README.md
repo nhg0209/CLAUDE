@@ -230,6 +230,7 @@ macOS는 keychain). 그게 안 되면 플러그인에서 직접:
 > 상태 표시줄에 브랜치 이름이 뜹니다 (Miscellaneous → **Show branch status bar**).
 > 이 볼트라면 `OFFROAD`, RL 볼트라면 `RL`이 떠야 정상입니다.
 > **다른 이름이 떠 있으면 볼트를 잘못 연 것입니다.**
+
 ---
 
 ## 권장 플러그인
