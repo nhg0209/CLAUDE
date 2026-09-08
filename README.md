@@ -132,22 +132,91 @@ cd RL-Papers
 
 Obsidian 실행 → **Open folder as vault** → 방금 클론한 `RL-Papers` 폴더 선택
 
-### 3. Obsidian Git 플러그인 (자동 pull)
+### 3. Obsidian Git 플러그인
 
-이걸 설정해야 Claude가 push한 내용이 알아서 내려옵니다.
+Claude가 push한 것이 알아서 내려오게 하는 부분입니다.
 
 1. **Settings → Community plugins → Turn on community plugins**
 2. **Browse** → `Obsidian Git` 검색 → Install → Enable
-3. 플러그인 설정에서:
 
-| 항목 | 값 |
+> [!warning] vault마다 따로 설치·설정해야 합니다
+> 한쪽 볼트에서 켠 것이 다른 쪽에 적용되지 않습니다. 두 볼트 모두에서 반복하세요.
+
+#### 3-1. 설정값 — 두 모드 중 하나를 고르세요
+
+설정 화면의 **섹션 이름 → 항목 이름** 순으로 적었습니다.
+
+**모드 A. 읽기 위주** — Claude가 쓰고 나는 읽는다 (권장 기본)
+
+| 섹션 → 항목 | 값 |
 |---|---|
-| Auto pull interval (minutes) | `5` |
-| Pull updates on startup | ✅ 켜기 |
-| Auto backup after file change | ❌ 끄기 (내 수정과 Claude push가 충돌할 수 있음) |
+| Pull → **Pull on startup** | ✅ |
+| Automatic → **Auto pull interval (minutes)** | `5` |
+| Automatic → **Auto commit-and-sync interval (minutes)** | `0` (끔) |
 
-이제 5분마다 자동으로 pull됩니다. 즉시 받고 싶으면 `Ctrl/Cmd+P` → `Git: Pull`.
+내가 노트를 고쳤을 때만 `Ctrl/Cmd+P` → **`Git: Commit-and-sync`** 를 직접 실행합니다.
+**충돌이 날 여지가 가장 적습니다.**
 
+**모드 B. 나도 자주 쓴다** — 양방향 자동
+
+| 섹션 → 항목 | 값 | 이유 |
+|---|---|---|
+| Pull → **Pull on startup** | ✅ | |
+| Automatic → **Auto pull interval (minutes)** | `5` | |
+| Automatic → **Auto commit-and-sync interval (minutes)** | `10` | 너무 짧으면 커밋이 지저분해집니다 |
+| Automatic → **Auto commit-and-sync after stopping file edits** | ✅ | 타이핑 도중에 커밋하지 않게 |
+| Commit-and-sync → **Push on commit-and-sync** | ✅ | |
+| Commit-and-sync → **Pull on commit-and-sync** | ✅ | **⚠️ 필수** — 아래 참조 |
+
+> [!danger] 모드 B에서 **Pull on commit-and-sync**를 반드시 켜세요
+> Claude가 원격에 커밋을 먼저 올려두면 내 push는 **non-fast-forward로 거부**됩니다.
+> 이 옵션이 켜져 있으면 push 전에 pull을 먼저 해서 자동으로 풀립니다.
+> 안 켜두면 *"밀리는데 이유를 모르겠는"* 상태가 됩니다.
+
+> [!note] 예전 이름과 다릅니다
+> 플러그인이 **"Backup" → "Commit-and-sync"** 로 용어를 바꿨습니다.
+> 오래된 블로그 글의 `Vault backup interval`·`Auto backup after file change`는
+> 지금의 `Auto commit-and-sync interval`·`Auto commit-and-sync after stopping file edits`입니다.
+
+#### 3-2. 인증
+
+**push하려면 필요합니다.** 저장소가 private이면 pull에도 필요합니다.
+
+OS 자격증명 관리자에 맡기는 게 가장 간단합니다 (Windows는 Git Credential Manager가 기본,
+macOS는 keychain). 그게 안 되면 플러그인에서 직접:
+
+- Authentication/commit author → **Username on your git server** = `nhg0209`
+- Authentication/commit author → **Password/Personal access token** = GitHub PAT
+  (GitHub → Settings → Developer settings → Personal access tokens, `repo` 권한)
+
+커밋 작성자를 구분하고 싶으면 같은 섹션의 **Author name for commit** / **Author email for commit**.
+
+> [!tip] PAT는 저장소에 올라가지 않습니다
+> 플러그인 설정은 `.obsidian/plugins/obsidian-git/data.json`에 저장되는데,
+> 이 볼트의 `.gitignore`가 `.obsidian/plugins/`를 통째로 제외합니다.
+
+#### 3-3. 자주 쓰는 명령 (`Ctrl/Cmd+P`)
+
+| 명령 | 용도 |
+|---|---|
+| **`Git: Pull`** | 즉시 받기. 이것만 알아도 됩니다 |
+| **`Git: Commit-and-sync`** | 내 수정을 커밋 + push |
+| **`Git: Open source control view`** | 변경된 파일 확인·스테이징 (사이드바) |
+| **`Git: Open history view`** | 커밋 히스토리 |
+
+#### 3-4. 안 될 때
+
+| 증상 | 해결 |
+|---|---|
+| **"Cannot run Git command"** | git 실행 파일을 못 찾는 것. Advanced → **Custom Git binary path** 에 `which git`(mac) / `where.exe git`(Windows) 결과를 그대로 넣습니다. 또는 Advanced → **Additional PATH environment variable paths** 에 `/opt/homebrew/bin` 추가 후 **Reload with new environment variables** 실행 |
+| **알림이 너무 잦다** | Miscellaneous → **Hide notifications for no changes** ✅, **Disable informative notifications** ✅ |
+| **충돌** | Pull → **Merge strategy on conflicts** 확인 후, 아래 「충돌이 났을 때」 절 |
+| **이 기기에서만 끄고 싶다** | Advanced → **Disable on this device** (이 설정은 다른 기기로 전파되지 않습니다) |
+
+> [!tip] 잘 되고 있는지 확인
+> 상태 표시줄에 브랜치 이름이 뜹니다 (Miscellaneous → **Show branch status bar**).
+> 이 볼트라면 `RL`, 오프로드 볼트라면 `OFFROAD`가 떠야 정상입니다.
+> **다른 이름이 떠 있으면 볼트를 잘못 연 것입니다.**
 ---
 
 ## 권장 플러그인

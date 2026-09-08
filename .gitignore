@@ -2,7 +2,9 @@
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/cache
-.obsidian/plugins/*/data.json
+
+# Obsidian 플러그인 — 코드는 재설치 가능하고, data.json에는 PAT가 들어간다
+.obsidian/plugins/
 
 # Obsidian 휴지통
 .trash/
