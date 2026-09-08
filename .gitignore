@@ -15,3 +15,5 @@ Thumbs.db
 
 # 논문 PDF (용량 문제 — 필요하면 이 줄을 지우세요)
 *.pdf
+
+# 논문 Figure 이미지는 커밋합니다 — Papers/attachments/ 아래

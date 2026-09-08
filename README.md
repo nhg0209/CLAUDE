@@ -353,6 +353,7 @@ tags: [paper]
 |---|---|
 | `MOC/` | [[논문 목록]] (색인), [[용어 사전]] |
 | `Papers/` | 논문 한 편당 노트 하나 |
+| `Papers/attachments/` | 논문에서 추출한 Figure 이미지 |
 | `Questions/` | 질문 로그 색인 |
 | `Templates/` | 논문 정리 템플릿 |
 
