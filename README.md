@@ -49,15 +49,57 @@ git config --global core.longpaths true    # 260자 경로 제한 해제
 
 #### 🍎 macOS
 
-한글 파일명이 자모 분리(`ㅈㅣㄷㅗ`)되는 것을 막습니다:
+> [!danger] 1순위 — 볼트를 **iCloud Drive 안에 두지 마세요**
+> 시스템 설정에서 *"데스크탑 및 문서 폴더"* 동기화가 켜져 있으면 `~/Desktop`·`~/Documents`가 iCloud Drive입니다.
+> 거기에 git 저장소를 두면 **`.git`이 깨집니다.** `.git` 안에는 object·ref·lock·log 같은
+> 작은 파일 수천 개가 계속 바뀌는데, iCloud는 문서 동기화용이라 이 부하를 감당하지 못합니다.
+>
+> 실제 보고되는 증상:
+> - **iCloud가 `.git` 폴더를 `git 2` 라는 파일로 바꿔버려 저장소가 통째로 죽음**
+> - 동시 편집이 없는데도 가짜 merge conflict
+> - 업로드 배지가 끝나지 않고 `bird` 프로세스가 CPU를 계속 먹음
+>
+> → `~/Vaults/` 처럼 **동기화 밖 경로**에 두세요. 백업은 GitHub 원격이 이미 하고 있습니다.
+
+**① Git 확인**
+
+```bash
+git --version
+```
+
+안 나오면 `xcode-select --install`(Apple 기본 git) 또는 `brew install git`.
+
+**② 한글 파일명 설정** — **macOS에서 가장 중요합니다**
 
 ```bash
 git config --global core.precomposeunicode true
+git config --get core.precomposeunicode      # true 가 나와야 함
 ```
+
+macOS(HFS+/APFS)는 파일명을 **NFD(자모 분리)** 로 저장하고, Linux·Windows는 **NFC(조합형)** 를 씁니다.
+이 볼트는 **파일명이 전부 한글**이라 이 설정이 없으면 같은 파일이
+`git status`에 **삭제 + 미추적으로 동시에** 뜨고, pull이 중복 파일을 만듭니다.
+git 버전에 따라 clone 시 자동으로 켜지기도 하지만 **전역으로 박아두는 편이 확실합니다.**
+
+**③ Obsidian Git이 "Cannot run Git command"라고 하면 — PATH 문제입니다**
+
+Dock·Finder·Spotlight로 띄운 Obsidian은 `~/.zshrc`를 읽지 않아 **셸 PATH를 물려받지 않습니다.**
+그래서 Homebrew git(Apple Silicon `/opt/homebrew/bin/git`, Intel `/usr/local/bin/git`)이 안 보입니다.
+
+→ 플러그인 설정에서 **git 실행 파일 경로를 직접 지정**하세요. 경로는 터미널에서:
+
+```bash
+which git
+```
+
+Apple 기본 git(`/usr/bin/git`)을 쓰면 이 문제가 나지 않습니다.
+
+> [!note] 안 해도 되는 것
+> `core.longpaths` — **Windows 전용**입니다. macOS에서는 설정하지 마세요.
 
 #### 🐧 Linux
 
-별도 설정 없음.
+별도 설정 없음. `~/Documents`가 클라우드 동기화 대상이 아닌지만 확인하세요.
 
 ---
 
