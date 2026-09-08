@@ -11,19 +11,80 @@ Claude (원격)  ──push──▶  GitHub (RL 브랜치)  ──pull──▶
 
 ## 처음 세팅 (한 번만)
 
+### 0. 운영체제별 준비
+
+이 볼트는 **파일명이 한글**이라 OS마다 한 번씩 확인할 게 있습니다.
+
+#### 🪟 Windows
+
+> [!danger] 1순위 — 볼트를 **OneDrive 안에 두지 마세요**
+> Windows는 `문서`·`바탕 화면`을 기본으로 OneDrive에 동기화합니다.
+> 그 안에 git 저장소 + Obsidian 볼트를 두면 **OneDrive와 git이 같은 파일을 두고 싸웁니다**:
+> 파일 잠금으로 pull 실패, `.git` 손상, `RL 지도-DESKTOP-ABC 1.md` 같은 중복 파일.
+>
+> → `C:\Users\<사용자>\Vaults\` 처럼 **동기화 밖 경로**에 두세요.
+> OneDrive 폴더인지 헷갈리면 탐색기에서 폴더 아이콘에 ☁️/✔ 표시가 있는지 보면 됩니다.
+
+**① Git 설치** — [Git for Windows](https://git-scm.com/download/win).
+설치 후 PowerShell에서 아래가 나와야 Obsidian Git 플러그인이 동작합니다 (플러그인이 시스템 git을 씁니다):
+
+```powershell
+git --version
+```
+
+**② 한글 파일명 설정** (한 번만, 전역):
+
+```powershell
+git config --global core.quotepath false   # git 출력에 한글이 \354\240... 로 안 깨짐
+git config --global core.longpaths true    # 260자 경로 제한 해제
+```
+
+**③ 터미널** — **Windows Terminal** 또는 **PowerShell 7**을 쓰세요.
+구형 `cmd.exe`는 한글 출력이 깨집니다.
+
+> [!note] 안 해도 되는 것
+> - `core.precomposeunicode` — **macOS 전용**입니다. Windows에서는 설정하지 마세요
+> - 줄바꿈(CRLF) — Git for Windows 기본값(`core.autocrlf=true`) 그대로 두면 됩니다.
+>   이 볼트는 **pull이 주 용도**라 CRLF 변환이 충돌을 만들지 않습니다
+
+#### 🍎 macOS
+
+한글 파일명이 자모 분리(`ㅈㅣㄷㅗ`)되는 것을 막습니다:
+
+```bash
+git config --global core.precomposeunicode true
+```
+
+#### 🐧 Linux
+
+별도 설정 없음.
+
+---
+
 ### 1. 볼트 클론
 
-노트를 두고 싶은 위치에서:
+노트를 두고 싶은 위치에서 (Windows는 위 ⚠️대로 **OneDrive 밖**):
 
 ```bash
 git clone -b RL https://github.com/nhg0209/CLAUDE.git RL-Papers
 cd RL-Papers
 ```
 
-> **macOS 사용자**: 한글 파일명이 자모 분리되는 것을 막으려면
+> [!tip] 오프로드 볼트도 있습니다
+> 같은 저장소의 **`OFFROAD` 브랜치**에 오프로드 주행 논문 볼트가 따로 있습니다.
+> 브랜치가 다르면 **작업 디렉터리도 달라야** 하므로, 같은 폴더에서 브랜치를 갈아타지 말고
+> 폴더를 두 개 두거나 `git worktree`를 쓰세요.
+>
+> macOS / Linux:
 > ```bash
-> git config core.precomposeunicode true
+> git worktree add ../Offroad-Papers OFFROAD
 > ```
+> Windows (PowerShell):
+> ```powershell
+> git worktree add ..\Offroad-Papers OFFROAD
+> ```
+> Obsidian에서는 **별개의 vault**로 엽니다. 좌하단 vault 스위처로 오갑니다.
+> ⚠️ 위키링크는 볼트 경계를 넘지 않습니다.
 
 ### 2. Obsidian에서 열기
 
