@@ -277,7 +277,20 @@ $\mathcal{T}^C$ 는 안 밟아본 segment 집합. 세 경우로 갈린다 (§3.5
 학습 내내 **ROC를 계산**하되, **confidence < 0.5 인 모든 segment를 negative**,
 **밟아본 segment를 positive** 로 놓고, 원하는 **False Positive Ratio (FPR)** 만 정해서 threshold를 결정한다.
 
-### 4-6. 구현 (§3.5.3)
+### 4-6. 총 손실 (§3.5.3)
+
+두 손실을 가중합해 **함께 학습**한다.
+
+$$\mathcal{L}_{\text{total}}(\mathbf{f}) = w_{\text{trav}}\,\mathcal{L}_{\text{trav}}(\mathbf{f}) + w_{\text{reco}}\,\mathcal{L}_{\text{reco}}(\mathbf{f}) \tag{9}$$
+
+| 항 | 무엇을 학습시키나 | 가중치 |
+|---|---|---|
+| $\mathcal{L}_{\text{trav}}$ | traversability head — 식 (7,8) | **0.03** |
+| $\mathcal{L}_{\text{reco}}$ | encoder-decoder(confidence의 원천) — 식 (3) | **0.5** |
+
+⚠️ **$w_{\text{reco}}$ 가 $w_{\text{trav}}$ 의 약 17배다.** 논문은 값만 제시하고 이 배분의 이유는 설명하지 않는다.
+
+### 4-7. 구현 (§3.5.3)
 
 | 항목 | 값 |
 |---|---|
@@ -285,12 +298,12 @@ $\mathcal{T}^C$ 는 안 밟아본 segment 집합. 세 경우로 갈린다 (§3.5
 | 가중치 공유 | **두 네트워크가 hidden layer 가중치를 공유** |
 | head | reco: $E$개 출력 뉴런 / trav: 1채널 + sigmoid |
 | bottleneck | **32채널 hidden layer** |
-| 총 손실 | $\mathcal{L}_{\text{total}} = w_{\text{trav}}\mathcal{L}_{\text{trav}} + w_{\text{reco}}\mathcal{L}_{\text{reco}}$ ... (9) |
 | optimizer | Adam [39], **고정 lr = 0.001** |
 | 배치 | **1 update step당 유효 mission node 8개 무작위 선택**. 유효 = segment 하나 이상이 non-zero $\tau$ |
 | 하이퍼파라미터 | $k_\sigma = 2$, $w_{\text{trav}} = 0.03$, $w_{\text{reco}} = 0.5$, **최대 FPR = 0.15** |
+| ablation | **이 논문에 없음** — 선행 논문 [10] 참조 |
 
-### 4-7. 폐루프 통합 (§4)
+### 4-8. 폐루프 통합 (§4)
 
 | 단계 | 내용 |
 |---|---|
