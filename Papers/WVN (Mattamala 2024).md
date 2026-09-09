@@ -485,6 +485,8 @@ SLIC segmentation의 문제이고 다른 캡처에서는 관찰되지 않았다.
 |---|---|---|
 | **traction** | 명령 속도 $(\bar v_x, \bar v_y)$ 와 실제 속도 $(v_x, v_y)$ 의 불일치. [38]에서 가져옴 | 이 논문의 **라벨 그 자체** (§3.3.1) |
 | **weak segmentation** | 정확한 semantic 분할이 아니라 sub-sampling을 위한 대략적 분할 ($\mathbf{M}$) | SLIC / STEGO / (random은 segment 없음) |
+| **segment embedding** $\mathbf{f}_n$ | segment 내부 픽셀들의 dense feature를 평균한 $E$차원 벡터 | Table 1 · §3.2.3. MLP의 입력 |
+| **reconstruction loss** $\mathcal{L}_{\text{reco}}$ | $\mathbf{f}_n$ 을 압축했다 복원했을 때의 채널별 MSE. **밟은 segment에서만 계산** | 식 (3). 값 자체가 아니라 $c$ 의 원천 |
 | **Supervision Graph** | 로봇 footprint와 $\tau$ 를 담는 **슬라이딩 윈도우** ring buffer | §3.4.1 |
 | **Mission Graph** | 학습에 필요한 데이터를 **미션 전체**에 걸쳐 보관 | §3.4.2 |
 | **footprint track** | Supervision Graph가 저장하는, $\tau$ 가 딸린 발자국 궤적 | 이미지로 재투영되어 라벨이 됨 |
@@ -499,6 +501,337 @@ SLIC segmentation의 문제이고 다른 캡처에서는 관찰되지 않았다.
 
 ## ❓ 질문
 
-읽으면서 던진 질문과 답. 전체 목록은 [[질문 로그]].
+**2026-09-09 세션.** 질문 순서가 아니라 **파이프라인 순서**로 묶었다.
+답은 전부 논문 원문 근거이고, 절·식·Figure 번호를 함께 적었다.
+논문에 서술이 없는 것은 ❓로 표시했다. 전체 색인은 [[질문 로그]].
 
-<!-- 여기에 추가 -->
+---
+
+### A. 라벨은 어디서 오는가 — traction
+
+#### Q. traction과 직접 라벨링의 차이가 "플랫폼마다 따로 라벨링할 필요가 없다"는 점인가? 그래서 여러 플랫폼에 보편적으로 쓸 수 있나?
+
+**A.** §3.3.1의 첫 문장이 전제를 뒤집는다.
+
+> *"Defining which terrain is traversable or not **depends on the capabilities of the specific platform**."*
+
+traction은 플랫폼 의존성을 없애는 장치가 아니라, **플랫폼 의존적인 라벨을 자동으로 얻는** 장치다.
+
+| | 보편적인가 |
+|---|---|
+| 라벨링 **절차** | ✅ 식 (1)의 입력이 기준 속도 명령 $(\bar v_x, \bar v_y)$ 와 로봇 추정 속도 $(v_x, v_y)$ 둘뿐 |
+| 라벨 **값** | ❌ 식 (1)이 재는 것은 "이 로봇이 이 지형에서 명령대로 움직였는가" |
+| $k$, $v_{\text{thr}}$ | ❌ §3.3.1: *"These values are **calibrated depending on the motion specifications of each platform**"* |
+
+❓ **다른 형태 플랫폼에서의 실험은 논문에 없다.** §5.1의 실험 플랫폼은 ANYmal C, D 두 4족보행뿐이다.
+"여러 플랫폼에 보편적으로 쓸 수 있다"는 주장도 논문에 없다.
+
+§2.3은 **기존 자기지도 방법들도 supervision이 플랫폼 의존적**이라고 적는다:
+
+| 논문 | supervision 신호 |
+|---|---|
+| Wellhausen [6] | 다리형 로봇의 재투영된 foothold |
+| Zürn [27] | 바퀴형 로봇이 지형에서 내는 소리 |
+| Gasparino [7] | MPC의 receding-horizon 궤적 |
+
+§2.3 마지막 문장이 밝히는 WVN의 차별점은 보편성이 아니다:
+
+> *"we aim for **concurrent supervision signal generation and learning** achieving **online adaptation in the field**."*
+
+#### Q. 모델을 보편적으로 만드는 게 아니라, 기존에 플랫폼별로 하던 라벨링을 속도 값으로 자동화한 것인가?
+
+**A.** 그렇고, class 단계가 사라진다는 차이가 있다.
+
+§2.2가 서술하는 semantic 방식은 두 단계다:
+
+> *"assigning semantic classes to the representations, **with different navigation costs**"*
+> *"rely on pre-trained or fine-tuned semantic segmentation models with **pre-defined class labels**"*
+
+traction은 class를 거치지 않고 연속 스칼라 $\tau \in [0,1]$ 을 직접 얻는다 (§3.3.1).
+
+모델 쪽은 층이 나뉜다. §3.5.3이 학습 대상으로 명시하는 것은 $f^{\theta_r}_{\text{reco}}$ 와 $f^{\theta_t}_{\text{trav}}$ 두 MLP뿐이고,
+§3.2.2는 *"in contrast to previous works based on **fine-tuned** Convolutional Neural Networks"* 라고 대비시킨다.
+⚠️ 논문이 backbone을 "frozen"이라고 명시하지는 않는다.
+
+---
+
+### B. 라벨이 이미지에 붙는 경로 — 두 그래프
+
+#### Q. traction으로 밟은 영역별 점수를 만들고, 그것을 이미지의 segment에 투영해 학습하는가?
+
+**A.** 그렇다. 네 단계로 나뉜다.
+
+**① $\tau$ 는 지형 분석이 아니라 그 순간의 속도 오차다.** 식 (1)(2). Supervision Graph 노드가 시각·로봇 pose·$\tau$ 를 저장하고, 노드는 $d_{\text{sup}}$ 간격으로 놓인다 (§3.4.1).
+
+**② 투영은 과거 이미지로 간다.** §3.4.1:
+
+> *"projecting the footprint track into the **previous** camera viewpoints"*
+
+§3.4.3:
+
+> *"When a new mission node is added, we update the supervision labels $\tau_n$ by **reprojecting the footprint track and corresponding traversability scores $\tau$ onto all the images of the mission nodes within a fixed range**"*
+
+재투영 결과가 보조 이미지 $\mathbf{S}$ 다.
+
+**③ segment 라벨은 평균이다.** §3.4.3:
+
+> *"assign per-segment traversability supervision values $\tau_n$ by **averaging the score over each segment**"*
+> *"Segments that do not overlap with the reprojected footprint track are **set to zero** (i.e untraversable)."*
+
+**④ 학습 입력은 이미지가 아니라 $(\mathbf{f}_n, \tau_n)$ 쌍이다** (§3.4.3 마지막, §3.5).
+
+#### Q. mission node에 들어가는 이미지는 한 장인가? 로봇이 일정 거리를 이동하면 갱신되는가?
+
+**A.** 이미지는 한 장이 맞다. §3.4.2:
+
+> *"**Each mission node contains the RGB image $\mathbf{I}$**, the weak segmentation mask $\mathbf{M}$ and per-segment features $\mathbf{f}_n$ with their corresponding traversability supervision $\tau_n$."*
+
+거리 조건은 **갱신** 조건이 아니라 **생성** 조건이다. §3.4.2:
+
+> *"The mission nodes are **added to the graph after feature extraction** if the **distance with respect to the last added node is larger than $d_{\text{mis}}$**."*
+
+시간이 아니라 이동 거리가 기준이고, 판정 순서는 *feature 추출 → 거리 조건 → 저장* 이다.
+
+**갱신되는 것은 과거 노드들의 라벨이다** (§3.4.3, 위 인용).
+
+| 노드 안의 항목 | 생성 시 | 이후 |
+|---|---|---|
+| $\mathbf{I}$, $\mathbf{M}$, $\mathbf{f}_n$ | 확정 | 고정 |
+| $\tau_n$ | 초기값 | **새 노드가 추가될 때마다 재투영으로 갱신** |
+
+❓ 논문에 수치가 없는 것: $N_{\text{sup}}$, $d_{\text{sup}}$, $d_{\text{mis}}$, 재투영 "fixed range".
+❓ multi-camera일 때 어느 카메라의 이미지가 mission node가 되는지도 서술이 없다.
+§3.2.1은 scheduler가 한 번에 한 카메라만 처리하고, 카메라마다 **"training and inference"** 또는 **"inference-only"** 우선순위가 있다고만 적는다.
+
+---
+
+### C. Feature와 embedding
+
+#### Q. segment embedding이 무엇인가?
+
+**A.** Table 1의 정의:
+
+| 기호 | 정의 |
+|---|---|
+| $\mathbf{F}$ | *"Feature map with dim. $E \times H \times W$, $E = 90$ or $384$"* |
+| $\mathbf{f}_n$ | *"**Per-segment embedding** of dim. $E = 90$ or $384$"* |
+
+생성 경로 (§3.2.2 → §3.2.3):
+
+1. 입력 이미지를 **$224 \times 224$** 로 리사이즈
+2. 사전학습 모델로 **픽셀 단위 dense feature** $\mathbf{F}$ 추출 — DINO-ViT는 384차원, STEGO는 90차원
+3. weak segmentation으로 **약 100개 segment**로 분할
+4. §3.2.3: *"**average the embeddings within each segment**"*
+
+sub-sampling을 하는 이유는 §3.2.2에 명시돼 있다:
+
+> *"The resulting dense features $\mathbf{F}$ are **too large to be stored in GPU memory for online training**."*
+
+예외 두 가지:
+- **Random** 전략은 segment가 없다. §3.2.3: *"we have **no segments but the feature locations only**"*
+- **Pixel-wise inference**는 dense $\mathbf{F}$ 를 직접 쓴다 (§3.2.4). 학습은 $\mathbf{f}_n$ 으로 한다 (§3.5)
+
+#### Q. embedding은 거리 값이 아니라 segment별 semantic 정보인가?
+
+**A.** 거리 값이 아니다. 입력은 RGB뿐이다. Fig. 2 캡션:
+
+> *"WVN only requires **monocular RGB images**, odometry, and proprioceptive data as input"*
+
+§5.1:
+
+> *"The **LiDAR and depth cameras** available on the robots were **only used for the local terrain mapping module** (Sec. 4.1)."*
+
+semantic이라는 표현에는 논문이 일관되게 **implicitly**를 붙인다.
+
+> 초록: *"which **implicitly** encode semantic information"*
+> §3.2.3 (STEGO): *"**class-free** segments, which implicitly encode **semantic affinity**"*
+
+affinity(유사도)로 작동한 결과가 실험에 나타난다:
+
+- §5.2.4 run 2: *"drove the robot to other **visually similar** areas in the park (**mud patches**) requiring manual intervention"* (Fig. 9의 ⋆)
+- §5.3.1: STEGO의 식물 과분할에 대해 *"both the features and the segments **'agreed'** on the object being **semantically similar** to the other traversed areas"*
+
+#### Q. "384채널 → 스칼라"가 무슨 뜻인가?
+
+**A.** 채널은 픽셀 하나가 들고 있는 숫자의 개수다. Table 1의 $\mathbf{F}$ 는 $E \times H \times W$ 로, RGB 이미지가 $3 \times H \times W$ 인 것과 같은 형태이고 채널 수가 $E$ 다.
+
+| | 픽셀당 숫자 |
+|---|---|
+| RGB 이미지 | 3 |
+| $\mathbf{F}$ (DINO-ViT) | **384** |
+| $\mathbf{F}$ (STEGO) | **90** |
+
+MLP의 입출력 (§3.5.2, §3.5.3):
+
+$$\mathbf{f}_n\ (E\text{차원}) \;\longrightarrow\; \tau_n\ (\text{스칼라})$$
+
+§3.5.2: *"We train a small network $f^{\theta_t}_{\text{trav}}$ with a **single channel output** to regress on the provided segment traversability score $\tau$."*
+§3.5.3: `[256, 32]` 2-layer MLP + trav head 1채널 + sigmoid.
+
+논문이 밝히는 효과:
+
+> 초록: *"implicitly encode semantic information that **massively simplifies the learning task**"*
+> §1 기여 2: *"We demonstrate that this **eases the overall traversability prediction training process**"*
+
+§5.2.1의 학습 진행 (Fig. 6):
+
+| 학습량 | 상태 |
+|---|---|
+| 9 step (21초) | *"very poor segmentation"* |
+| 800 step (2분) | 흙길을 traversable로, 나무를 untraversable로 구분 |
+
+---
+
+### D. 추론 방식
+
+#### Q. segment-wise와 pixel-wise를 둘 다 적용했는가?
+
+**A.** 둘 다 적용했고, 적용된 자리가 다르다 (§3.2.4에 두 방식 정의).
+
+| | Segment-wise | Pixel-wise |
+|---|---|---|
+| 출처 | *"the approach **implemented originally** [10]"* | 이 확장판에서 추가 |
+| 입력 | $\{\mathbf{f}_n\}$ | dense $\mathbf{F}$ |
+| 출력 | segment의 모든 픽셀에 같은 $\tau_n$ | 픽셀마다 |
+| 실차 | §5.2.3 (SLIC 사용 명시) | §5.2.5 — *"perform the inference **pixel-wise**"* |
+
+정면 비교는 **오프라인 후처리**로만 했다. §5.3.1:
+
+> *"We ran WVN **in post-processing**, on the recorded logs from the Sec. 5.2.2 and Sec. 5.2.1 experiments."*
+
+⚠️ **정량 결과가 없다.** Fig. 11 캡션:
+
+> *"We **qualitatively** compared segment-wise and pixel-wise inference"*
+
+결과 (§5.3.1):
+- *"We observed **consistencies** between the segment-wise and pixel-wise predictions"*
+- pixel-wise의 이점: 세밀한 예측, 그리고 *"disregarding the **artifacts that weak-segmentation methods such as SLIC induce**"* — Fig. 11 (b), (c)의 나무 줄기
+
+§5.2.3이 §5.2.5로 직접 연결된다:
+
+> *"This limitation is **addressed in Sec. 5.2.5**, where we deploy our multiple-camera setup and the **novel segmentation and pixel-wise prediction method**."*
+
+학습은 두 경우 모두 segment 단위다 (§3.5).
+
+⚠️ **상호참조 오기**: §3.2.4 끝은 *"Sec. 5.3.2 provides qualitative examples"* 라고 가리키지만, 두 추론 방식의 비교는 **§5.3.1**이다. §5.3.2는 sub-sampling 비교다.
+
+---
+
+### E. Confidence
+
+#### Q. confidence 추정은 어떤 의미이고 어떻게 사용되는가?
+
+**A.** §3.4.3이 만든 편향을 다루는 장치다.
+
+> §3.4.3: *"Segments that do not overlap with the reprojected footprint track are **set to zero**"*
+> §3.5: *"we model the **uncertainty about the unvisited (and hence, unlabeled) areas** by using anomaly detection techniques to bootstrap a confidence estimate."*
+
+계산은 식 (3) → (4)(5) → (6)이고, **사용처는 두 곳**이다.
+
+**(a) 손실 가중** — 식 (7,8)에서 안 밟은 항에 $(1-c)$ 를 곱한다.
+
+**(b) threshold 결정** — §3.5.2:
+
+> *"We compute the ROC throughout training by **classifying all segments with confidence under 0.5 as negative** and traversed segments as positive labels. Then, we decide on the traversability threshold only by setting the desired **False Positive Ratio (FPR)**."*
+
+구조는 §3.5.3:
+
+> *"Both networks **share the weights of the hidden layers**. … The **32-channel hidden layer functions as the bottleneck** of the encoder-decoder structure."*
+
+$k_\sigma$ 는 기본 2 (§3.5.3). §5.2.4 run 2는 3으로 완화했고 FPR도 0.3으로 올렸다:
+
+> *"producing a **less conservative behavior** that drove the robot to other visually similar areas in the park (mud patches) **requiring manual intervention** to correct the heading."*
+
+#### Q. 식 (3)의 reconstruction은 정확히 무엇을 어떻게 복원하는가?
+
+**A.** 이미지가 아니라 **embedding 벡터**를 복원한다. §3.5.1:
+
+> *"An encoder-decoder network $f^{\theta_r}_{\text{reco}}$ is trained to **compress the segment feature $\mathbf{f}_n$ into a low dimensional latent space and reconstruct the original input features $\mathbf{f}_n$**."*
+
+입력과 출력이 같은 대상($E$차원 벡터)이고, 손실은 채널 $E$ 에 대한 MSE다 (식 3).
+중간에 통과하는 32채널이 bottleneck이다 (§3.5.3).
+
+식 (3)의 조건절이 anomaly detection을 성립시킨다:
+
+> §3.5.1: *"This ensures that the network **only learns to reconstruct the embeddings that are labeled**, in an anomaly detection fashion. Consequently, the trained network reconstructs **known (positive)** feature embeddings … with **small reconstruction loss**; feature embeddings of **unknown (anomalous)** segments the network was never tasked to reconstruct, **such as trees or sky**, induce a **high reconstruction loss**."*
+
+복원된 벡터 자체는 식 (3)의 손실 계산 외에 쓰이지 않는다. 그 손실이 식 (4)(5)(6)을 거쳐 $c$ 가 된다.
+
+#### Q. 학습된 encoder-decoder를 안 밟은 segment에 적용해서, 밟은 곳과 비슷하게 복원되면 "밟을 수 있다"고 판단하는 구조인가?
+
+**A.** confidence는 traversable로 판단하지 않는다. **손실 기여를 제거할 뿐**이다. §3.5.2의 세 경우:
+
+| segment $n$ | 결과 (원문) |
+|---|---|
+| 밟았음 | $\mathcal{L}_{\text{trav}}(\mathbf{f}_n) = \lVert f^{\theta_t}_{\text{trav}}(\mathbf{f}_n) - \tau_n\rVert^2$ |
+| 안 밟았고 **positive와 안 닮음** | *"its confidence will be low $c(\mathbf{f}_n) \to 0$ and $\mathcal{L}_{\text{trav}}(\mathbf{f}_n) \to \lVert f_{\text{trav}}(\mathbf{f}_n) - 0\rVert^2$"* |
+| 안 밟았고 **positive와 닮음** | *"its confidence $c(\mathbf{f}_n) \to 1$ and $\mathcal{L}_{\text{trav}}(\mathbf{f}_n) \to 0$, **effectively not contributing to the loss anymore**"* |
+
+§3.5.2가 밝히는 의도:
+
+> *"This **motivates the network to learn the traversability score measured by physically interacting** with the segment as opposed to **being too pessimistic**."*
+
+#### Q. confidence가 낮으면 traversability를 낮게 학습시키고, 높으면 해당 항을 0에 가깝게 해서 조정을 거의 없게 한 것인가?
+
+**A.** 그렇다. 안 밟은 항에 곱해지는 값이 $c$ 가 아니라 $(1-c)$ 다 (식 7,8).
+밟은 segment는 $c$ 와 무관하게 $\tau_n$ 으로 학습된다.
+
+기준 분포는 배치마다 다시 계산한다. §3.5.1:
+
+> *"we fit a Gaussian distribution $\mathcal{N}(\mu_{\text{pos}}, \sigma_{\text{pos}})$ over the reconstruction losses **per batch** of the traversed segments"*
+
+식 (9)의 가중치는 $w_{\text{trav}} = 0.03$, $w_{\text{reco}} = 0.5$ 다 (§3.5.3).
+❓ 이 배분의 이유는 논문에 설명이 없다.
+
+---
+
+### F. 논문의 위치
+
+#### Q. ablation이 무엇인가? 이 논문에 있는가?
+
+**A.** 논문 내 언급은 §3.5.3의 마지막 한 문장뿐이다.
+
+> *"Please refer to our **previous publication [10]** for **ablation studies of the different parameter and design choices**."*
+
+즉 $k_\sigma$, $w_{\text{trav}}$, $w_{\text{reco}}$, FPR, bottleneck 크기 같은 파라미터·설계 선택의 ablation은 **[10](RSS 2023, `arXiv:2305.08510`)에 있고 이 논문에는 없다.**
+
+이 논문이 수행한 비교는 §5.3의 둘이다:
+
+| 비교 | 위치 | 성격 |
+|---|---|---|
+| sub-sampling (SLIC / STEGO / Random) | §5.3.2 | **정량** — 5회 반복, 학습 손실 곡선, $2\sigma$ 신뢰구간 |
+| 추론 방식 (segment-wise / pixel-wise) | §5.3.1 | **정성** — Fig. 11, 수치 없음 |
+
+❓ confidence 메커니즘 자체(식 7,8에서 $(1-c)$ 를 뺐을 때)의 효과는 이 논문에 수치가 없다.
+
+#### Q. 이 논문의 가장 큰 특징은 온라인 학습이고, sub-sampling과 사전학습 모델은 계산을 쉽게 하기 위한 것인가?
+
+**A.** 논문은 두 축을 나란히 놓는다. 제목:
+
+> *"Fast Traversability Learning via **Pre-Trained Models** and **Online Self-Supervision**"*
+
+초록:
+
+> *"**One of the key ideas** to achieve this is the use of high-dimensional features from pre-trained self-supervised models…
+> **Further**, the development of an online scheme for supervision generator enables concurrent training and inference"*
+
+두 요소의 목적은 다르다.
+
+| | 논문이 밝히는 목적 |
+|---|---|
+| **사전학습 모델** | **학습 과제 단순화** — 초록 *"massively simplifies the learning task"*, §1 기여 2 *"eases the overall traversability prediction training process"* |
+| **sub-sampling** | **GPU 메모리** — §3.2.2 *"too large to be stored in GPU memory for online training"* |
+
+§5.3.2에서 STEGO sub-sampling은 메모리 외의 효과도 보였다 — *"faster convergence and lower training loss"*.
+
+그리고 **온라인 자기지도 학습 자체는 [10]에서 이미 한 것**이다. §1:
+
+> *"This article **extends** the system presented by Frey and Mattamala et al. [10], addressing some of the limitations raised in the original formulation and introducing additional features for system integration and field deployment."*
+
+§1이 열거하는 **이 확장판의 기여 5개**:
+
+1. 온라인 **multi-camera** self-supervision 파이프라인
+2. 사전학습 backbone에 **STEGO** 추가 (원본은 DINO-ViT)
+3. **feature sub-sampling 전략** (원본은 SLIC)
+4. 실차 실험 — 온보드 실행, 단일/다중 카메라
+5. **오픈소스 ROS 구현** + baseline 가중치
