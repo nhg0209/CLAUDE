@@ -1,0 +1,789 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape https://cad.onshape.com/documents/56394d6a93ea4f9648dae804/w/b598973bb87f8da9dff1106a/e/388fdbf6f32e92252615eeed -->
+<robot name="ubuntu">
+  <!-- Link link_chassis -->
+  <link name="link_chassis">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_chassis -->
+    <visual>
+      <origin xyz="7.3e-11 6.59e-10 -2.125e-09" rpy="1.7207e-08 -0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis.stl"/>
+      </geometry>
+      <material name="link_chassis_material">
+        <color rgba="0.741176 0.709804 0.709804 1"/>
+      </material>
+    </visual>
+    <!-- Part link_chassis_2 -->
+    <visual>
+      <origin xyz="1.56e-09 6.59e-10 -2.364e-09" rpy="1.7207e-08 -0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis__2.stl"/>
+      </geometry>
+      <material name="link_chassis_2_material">
+        <color rgba="0.207843 0.207843 0.207843 1"/>
+      </material>
+    </visual>
+    <!-- Part link_chassis_3 -->
+    <visual>
+      <origin xyz="2.979e-09 6.59e-10 -2.67069e-06" rpy="1.7207e-08 0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis__3.stl"/>
+      </geometry>
+      <material name="link_chassis_3_material">
+        <color rgba="0.290196 0.290196 0.286275 1"/>
+      </material>
+    </visual>
+    <!-- Part link_chassis_4 -->
+    <visual>
+      <origin xyz="4.9775e-08 -2.14895e-07 -2.126e-09" rpy="1.7207e-08 -0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis__4.stl"/>
+      </geometry>
+      <material name="link_chassis_4_material">
+        <color rgba="1 1 0.996078 1"/>
+      </material>
+    </visual>
+    <!-- Part link_chassis_5 -->
+    <visual>
+      <origin xyz="7.3e-11 6.59e-10 -2.67069e-06" rpy="1.7207e-08 -0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis__5.stl"/>
+      </geometry>
+      <material name="link_chassis_5_material">
+        <color rgba="0.219608 0.215686 0.215686 1"/>
+      </material>
+    </visual>
+    <!-- Part link_chassis_6 -->
+    <visual>
+      <origin xyz="6.43395e-06 -4.15193e-06 -2.126e-09" rpy="1.7207e-08 -0 -2.409e-09"/>
+      <geometry>
+        <mesh filename="package://assets/link_chassis__6.stl"/>
+      </geometry>
+      <material name="link_chassis_6_material">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_under_arm_fl -->
+  <link name="link_under_arm_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_under_arm_fl -->
+    <visual>
+      <origin xyz="-0.004 -0.004 -0.007" rpy="-1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_under_arm_fl.stl"/>
+      </geometry>
+      <material name="link_under_arm_fl_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_1_fl -->
+  <link name="link_nuckle_1_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_1_fl -->
+    <visual>
+      <origin xyz="-0.035 0.004 -0.017" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_1_fl.stl"/>
+      </geometry>
+      <material name="link_nuckle_1_fl_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_2_fl -->
+  <link name="link_nuckle_2_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_2_fl -->
+    <visual>
+      <origin xyz="-0.017246 -0.003 0.00424074" rpy="-1.5708 -0.218669 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_2_fl.stl"/>
+      </geometry>
+      <material name="link_nuckle_2_fl_material">
+        <color rgba="0.392157 0.392157 0.376471 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_wheel_fl -->
+  <link name="link_wheel_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_wheel_fl -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="3.14159 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_fl.stl"/>
+      </geometry>
+      <material name="link_wheel_fl_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+    <!-- Part link_wheel_fl_2 -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="3.14159 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_fl__2.stl"/>
+      </geometry>
+      <material name="link_wheel_fl_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_2_fl to link_wheel_fl -->
+  <joint name="wheel_fl" type="continuous">
+    <origin xyz="-0 0.014 -0.0134391" rpy="-1.5708 0.218669 -3.14159"/>
+    <parent link="link_nuckle_2_fl"/>
+    <child link="link_wheel_fl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10"/>
+  </joint>
+  <!-- Joint from link_nuckle_1_fl to link_nuckle_2_fl -->
+  <joint name="nuckle2_fl" type="revolute">
+    <origin xyz="-0.0271191 0.001 -0.00108465" rpy="-8.61e-09 1.35213 3.14159"/>
+    <parent link="link_nuckle_1_fl"/>
+    <child link="link_nuckle_2_fl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_upper_arm_fl -->
+  <link name="link_upper_arm_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_upper_arm_fl -->
+    <visual>
+      <origin xyz="0 -0.004 -0.004" rpy="-0 -0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_upper_arm_fl.stl"/>
+      </geometry>
+      <material name="link_upper_arm_fl_material">
+        <color rgba="0.576471 0.568627 0.568627 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_1_fl to link_upper_arm_fl -->
+  <joint name="upper2_fl" type="revolute">
+    <origin xyz="-0.035 0.004 -0.0154876" rpy="-3.14159 0 3.11157"/>
+    <parent link="link_nuckle_1_fl"/>
+    <child link="link_upper_arm_fl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_under_arm_fl to link_nuckle_1_fl -->
+  <joint name="nuckle1_fl" type="revolute">
+    <origin xyz="0.078 0 0.0075" rpy="3.14159 0 -1.59443"/>
+    <parent link="link_under_arm_fl"/>
+    <child link="link_nuckle_1_fl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_chassis to link_under_arm_fl -->
+  <joint name="under_fl" type="revolute">
+    <origin xyz="-0.0868722 -0.022 0.0102261" rpy="1.43159 -0.0397673 -1.56523"/>
+    <parent link="link_chassis"/>
+    <child link="link_under_arm_fl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_under_arm_fr -->
+  <link name="link_under_arm_fr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_under_arm_fr -->
+    <visual>
+      <origin xyz="-0.004 -0.004 -0.007" rpy="-1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_under_arm_fr.stl"/>
+      </geometry>
+      <material name="link_under_arm_fr_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_1_fr -->
+  <link name="link_nuckle_1_fr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_1_fr -->
+    <visual>
+      <origin xyz="-0.035 -0.004 -0.017" rpy="-1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_1_fr.stl"/>
+      </geometry>
+      <material name="link_nuckle_1_fr_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_2_fr -->
+  <link name="link_nuckle_2_fr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_2_fr -->
+    <visual>
+      <origin xyz="-0.017246 -0.003 0.00424074" rpy="-1.5708 -0.218669 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_2_fr.stl"/>
+      </geometry>
+      <material name="link_nuckle_2_fr_material">
+        <color rgba="0.392157 0.392157 0.376471 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_wheel_fr -->
+  <link name="link_wheel_fr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_wheel_fr -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="0 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_fr.stl"/>
+      </geometry>
+      <material name="link_wheel_fr_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+    <!-- Part link_wheel_fr_2 -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="0 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_fr__2.stl"/>
+      </geometry>
+      <material name="link_wheel_fr_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_2_fr to link_wheel_fr -->
+  <joint name="wheel_fr" type="continuous">
+    <origin xyz="-0 0.014 -0.0134391" rpy="1.5708 -0.218669 0"/>
+    <parent link="link_nuckle_2_fr"/>
+    <child link="link_wheel_fr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10"/>
+  </joint>
+  <!-- Joint from link_nuckle_1_fr to link_nuckle_2_fr -->
+  <joint name="nuckle2_fr" type="revolute">
+    <origin xyz="-0.0271191 -0.001 -0.00108465" rpy="-4.7797e-08 -1.35213 4.8963e-08"/>
+    <parent link="link_nuckle_1_fr"/>
+    <child link="link_nuckle_2_fr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_upper_arm_fr -->
+  <link name="link_upper_arm_fr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_upper_arm_fr -->
+    <visual>
+      <origin xyz="0 -0.077 -0.004" rpy="0 -0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_upper_arm_fr.stl"/>
+      </geometry>
+      <material name="link_upper_arm_fr_material">
+        <color rgba="0.576471 0.568627 0.568627 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_1_fr to link_upper_arm_fr -->
+  <joint name="upper2_fr" type="revolute">
+    <origin xyz="-0.035 -0.004 -0.0154876" rpy="-3.14159 0 -3.11157"/>
+    <parent link="link_nuckle_1_fr"/>
+    <child link="link_upper_arm_fr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_under_arm_fr to link_nuckle_1_fr -->
+  <joint name="nuckle1_fr" type="revolute">
+    <origin xyz="0.078 -0 0.0075" rpy="3.14159 -0 1.56019"/>
+    <parent link="link_under_arm_fr"/>
+    <child link="link_nuckle_1_fr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_chassis to link_under_arm_fr -->
+  <joint name="under_fr" type="revolute">
+    <origin xyz="-0.0868722 0.022 0.0102261" rpy="-1.4317 -0.00585988 1.56998"/>
+    <parent link="link_chassis"/>
+    <child link="link_under_arm_fr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_under_arm_rl -->
+  <link name="link_under_arm_rl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_under_arm_rl -->
+    <visual>
+      <origin xyz="-0.004 0.004 0" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_under_arm_rl.stl"/>
+      </geometry>
+      <material name="link_under_arm_rl_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_rl -->
+  <link name="link_nuckle_rl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_rl -->
+    <visual>
+      <origin xyz="-0.004 -0.013 -0.0075" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_rl.stl"/>
+      </geometry>
+      <material name="link_nuckle_rl_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_upper_arm_rl -->
+  <link name="link_upper_arm_rl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_upper_arm_rl -->
+    <visual>
+      <origin xyz="0 -0.004 -0.004" rpy="0 -0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_upper_arm_rl.stl"/>
+      </geometry>
+      <material name="link_upper_arm_rl_material">
+        <color rgba="0.678431 0.678431 0.678431 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_rl to link_upper_arm_rl -->
+  <joint name="upper2_rl" type="revolute">
+    <origin xyz="-0.0165 -0.039 -0.0035" rpy="-3.14159 0 -1.59323"/>
+    <parent link="link_nuckle_rl"/>
+    <child link="link_upper_arm_rl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_wheel_rl -->
+  <link name="link_wheel_rl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_wheel_rl -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="3.14159 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_rl.stl"/>
+      </geometry>
+      <material name="link_wheel_rl_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+    <!-- Part link_wheel_rl_2 -->
+    <visual>
+      <origin xyz="0 0 0.0185" rpy="3.14159 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_rl__2.stl"/>
+      </geometry>
+      <material name="link_wheel_rl_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_rl to link_wheel_rl -->
+  <joint name="wheel_rl" type="continuous">
+    <origin xyz="0.0075 -0.013 -0.0075" rpy="-1.5708 -1.54394 1.5708"/>
+    <parent link="link_nuckle_rl"/>
+    <child link="link_wheel_rl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10"/>
+  </joint>
+  <!-- Joint from link_under_arm_rl to link_nuckle_rl -->
+  <joint name="nuckle_rl" type="revolute">
+    <origin xyz="0.078 -0 -0.015" rpy="0 -0 -0.0777514"/>
+    <parent link="link_under_arm_rl"/>
+    <child link="link_nuckle_rl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_chassis to link_under_arm_rl -->
+  <joint name="under_rl" type="revolute">
+    <origin xyz="0.261001 -0.023 0.012" rpy="-1.5708 -0.024989 -1.5708"/>
+    <parent link="link_chassis"/>
+    <child link="link_under_arm_rl"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_under_arm_rr -->
+  <link name="link_under_arm_rr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_under_arm_rr -->
+    <visual>
+      <origin xyz="-0.004 0.004 0" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_under_arm_rr.stl"/>
+      </geometry>
+      <material name="link_under_arm_rr_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_nuckle_rr -->
+  <link name="link_nuckle_rr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_nuckle_rr -->
+    <visual>
+      <origin xyz="-0.004 0.013 -0.0075" rpy="-1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_nuckle_rr.stl"/>
+      </geometry>
+      <material name="link_nuckle_rr_material">
+        <color rgba="0.392157 0.392157 0.392157 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_upper_arm_rr -->
+  <link name="link_upper_arm_rr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_upper_arm_rr -->
+    <visual>
+      <origin xyz="0 -0.0595 -0.004" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_upper_arm_rr.stl"/>
+      </geometry>
+      <material name="link_upper_arm_rr_material">
+        <color rgba="0.678431 0.678431 0.678431 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_rr to link_upper_arm_rr -->
+  <joint name="upper2_rr" type="revolute">
+    <origin xyz="-0.0165 0.039 -0.0035" rpy="-3.14159 0 1.59323"/>
+    <parent link="link_nuckle_rr"/>
+    <child link="link_upper_arm_rr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_wheel_rr -->
+  <link name="link_wheel_rr">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_wheel_rr -->
+    <visual>
+      <origin xyz="-0 0 0.0185" rpy="0 0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_rr.stl"/>
+      </geometry>
+      <material name="link_wheel_rr_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+    <!-- Part link_wheel_rr_2 -->
+    <visual>
+      <origin xyz="-0 0 0.0185" rpy="0 0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_wheel_rr__2.stl"/>
+      </geometry>
+      <material name="link_wheel_rr_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_nuckle_rr to link_wheel_rr -->
+  <joint name="wheel_rr" type="continuous">
+    <origin xyz="0.0075 0.013 -0.0075" rpy="-0 -1.5708 0"/>
+    <parent link="link_nuckle_rr"/>
+    <child link="link_wheel_rr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10"/>
+  </joint>
+  <!-- Joint from link_under_arm_rr to link_nuckle_rr -->
+  <joint name="nuckle_rr" type="revolute">
+    <origin xyz="0.078 0 -0.015" rpy="0 -0 -0.00299826"/>
+    <parent link="link_under_arm_rr"/>
+    <child link="link_nuckle_rr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Joint from link_chassis to link_under_arm_rr -->
+  <joint name="under_rr" type="revolute">
+    <origin xyz="0.261001 0.023 0.012" rpy="1.5708 -0.105739 1.5708"/>
+    <parent link="link_chassis"/>
+    <child link="link_under_arm_rr"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_rear_sus_spring_1 -->
+  <link name="link_rear_sus_spring_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_rear_sus_spring_1 -->
+    <visual>
+      <origin xyz="0 -0 -0.002" rpy="1.5708 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_rear_sus_spring_1.stl"/>
+      </geometry>
+      <material name="link_rear_sus_spring_1_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_rear_sus_rod_1 -->
+  <link name="link_rear_sus_rod_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_rear_sus_rod_1 -->
+    <visual>
+      <origin xyz="0 0 0.071581" rpy="-3.14159 -0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_rear_sus_rod_1.stl"/>
+      </geometry>
+      <material name="link_rear_sus_rod_1_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_rear_sus_spring_1 to link_rear_sus_rod_1 -->
+  <joint name="spring_rod_rl" type="prismatic">
+    <origin xyz="0 -0.06 -0.002" rpy="-1.5708 0 0"/>
+    <parent link="link_rear_sus_spring_1"/>
+    <child link="link_rear_sus_rod_1"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1" upper="1"/>
+  </joint>
+  <!-- Joint from link_chassis to link_rear_sus_spring_1 -->
+  <joint name="spring_rl" type="revolute">
+    <origin xyz="0.222808 -0.0255 0.083" rpy="1.5708 0.707468 1.5708"/>
+    <parent link="link_chassis"/>
+    <child link="link_rear_sus_spring_1"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_rear_sus_spring_2 -->
+  <link name="link_rear_sus_spring_2">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_rear_sus_spring_2 -->
+    <visual>
+      <origin xyz="-0 -0 -0.002" rpy="1.5708 0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_rear_sus_spring_2.stl"/>
+      </geometry>
+      <material name="link_rear_sus_spring_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_rear_sus_rod_2 -->
+  <link name="link_rear_sus_rod_2">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_rear_sus_rod_2 -->
+    <visual>
+      <origin xyz="-0 0 0.0805555" rpy="-3.14159 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_rear_sus_rod_2.stl"/>
+      </geometry>
+      <material name="link_rear_sus_rod_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_rear_sus_spring_2 to link_rear_sus_rod_2 -->
+  <joint name="spring_rod_rr" type="prismatic">
+    <origin xyz="-0 -0.06 -0.002" rpy="-1.5708 0 -0"/>
+    <parent link="link_rear_sus_spring_2"/>
+    <child link="link_rear_sus_rod_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1" upper="1"/>
+  </joint>
+  <!-- Joint from link_chassis to link_rear_sus_spring_2 -->
+  <joint name="spring_rr" type="revolute">
+    <origin xyz="0.222808 0.0255 0.083" rpy="1.5708 -0.705183 1.5708"/>
+    <parent link="link_chassis"/>
+    <child link="link_rear_sus_spring_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_front_sus_spring_1 -->
+  <link name="link_front_sus_spring_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_front_sus_spring_1 -->
+    <visual>
+      <origin xyz="0 0 -0.002" rpy="-1.5708 0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_front_sus_spring_1.stl"/>
+      </geometry>
+      <material name="link_front_sus_spring_1_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_front_sus_rod_1 -->
+  <link name="link_front_sus_rod_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_front_sus_rod_1 -->
+    <visual>
+      <origin xyz="0 -0 -0.0457867" rpy="0 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_front_sus_rod_1.stl"/>
+      </geometry>
+      <material name="link_front_sus_rod_1_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_front_sus_spring_1 to link_front_sus_rod_1 -->
+  <joint name="spring_rod_fl" type="prismatic">
+    <origin xyz="0 0.045 -0.002" rpy="-1.5708 0 0"/>
+    <parent link="link_front_sus_spring_1"/>
+    <child link="link_front_sus_rod_1"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1" upper="1"/>
+  </joint>
+  <!-- Joint from link_chassis to link_front_sus_spring_1 -->
+  <joint name="spring_fl" type="revolute">
+    <origin xyz="-0.110688 -0.0255 0.0852469" rpy="-1.74437 -0.638823 -1.46663"/>
+    <parent link="link_chassis"/>
+    <child link="link_front_sus_spring_1"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+  <!-- Link link_front_sus_spring_2 -->
+  <link name="link_front_sus_spring_2">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_front_sus_spring_2 -->
+    <visual>
+      <origin xyz="0 0 -0.002" rpy="-1.5708 -0 -0"/>
+      <geometry>
+        <mesh filename="package://assets/link_front_sus_spring_2.stl"/>
+      </geometry>
+      <material name="link_front_sus_spring_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Link link_front_sus_rod_2 -->
+  <link name="link_front_sus_rod_2">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="1e-09" ixy="0" ixz="0" iyy="1e-09" iyz="0" izz="1e-09"/>
+    </inertial>
+    <!-- Part link_front_sus_rod_2 -->
+    <visual>
+      <origin xyz="0 0 0.0444285" rpy="-3.14159 -0 0"/>
+      <geometry>
+        <mesh filename="package://assets/link_front_sus_rod_2.stl"/>
+      </geometry>
+      <material name="link_front_sus_rod_2_material">
+        <color rgba="0.627451 0.627451 0.627451 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Joint from link_front_sus_spring_2 to link_front_sus_rod_2 -->
+  <joint name="spring_rod_fr" type="prismatic">
+    <origin xyz="-0 0.045 -0.002" rpy="1.5708 -0 -0"/>
+    <parent link="link_front_sus_spring_2"/>
+    <child link="link_front_sus_rod_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1" upper="1"/>
+  </joint>
+  <!-- Joint from link_chassis to link_front_sus_spring_2 -->
+  <joint name="spring_fr" type="revolute">
+    <origin xyz="-0.110688 0.0255 0.0852469" rpy="-1.76265 0.756683 -1.70337"/>
+    <parent link="link_chassis"/>
+    <child link="link_front_sus_spring_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.141592653589793" upper="3.141592653589793"/>
+  </joint>
+</robot>
