@@ -22,8 +22,8 @@ tags: [MOC]
 > [!important] 우선순위 논문 4편
 > 아래 순서대로 읽습니다. 위 계보도는 이 4편의 **배경**을 잡기 위한 지도입니다.
 >
-> 1. [[SAC (Haarnoja 2018)]] — `arXiv:1801.01290` §3.2 → §4 → Appendix C
-> 2. [[SAC v2 (Haarnoja 2018)]] — `arXiv:1812.05905`, auto entropy tuning
+> 1. ✅ [[SAC (Haarnoja 2018)]] — `arXiv:1801.01290` §3.2 → §4 → Appendix C → §5 **(2026-09-14 완독)**
+> 2. ⏳ [[SAC v2 (Haarnoja 2018)]] — `arXiv:1812.05905`, auto entropy tuning ← **다음. 실제로 구현할 버전**
 > 3. [[Asymmetric Actor-Critic (Pinto 2017)]] — `arXiv:1710.06542`, 짧음
 > 4. [[TM07 리포트 (2025)]] — Asymmetric SAC 레이싱 아키텍처
 
