@@ -9,6 +9,7 @@ docker run -it --rm \
   --gpus all \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
   -e OMNI_KIT_ACCEPT_EULA=YES -e ACCEPT_EULA=Y -e PRIVACY_CONSENT=Y \
+  -e OMNI_KIT_ALLOW_ROOT=1 \
   --shm-size=16g \
   -v "$HOME/rl-racing:/workspace" \
   -v "$HOME/.cache/isaac/ov:/root/.cache/ov" \

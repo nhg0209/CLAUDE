@@ -120,6 +120,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OMNI_KIT_ACCEPT_EULA=YES \
     ACCEPT_EULA=Y \
     PRIVACY_CONSENT=Y \
+    OMNI_KIT_ALLOW_ROOT=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -201,6 +202,7 @@ Ubuntu 24.04  → 기본 3.12. 게다가 패키지가 t64 계열로 개명 (liba
 | `DEBIAN_FRONTEND=noninteractive` | `tzdata` 가 지역 선택 프롬프트를 띄우고 **빌드가 영원히 멈춘다** |
 | ⭐ `NVIDIA_DRIVER_CAPABILITIES=all` | 기본값 `compute,utility` 에는 **`graphics` 가 없다** → Vulkan ICD 미주입 → **headless 여도 Kit 초기화에서 사망** |
 | `OMNI_KIT_ACCEPT_EULA` 외 2개 | 첫 실행에 EULA 프롬프트 → 비대화형 학습이 멈춤 |
+| ⭐ `OMNI_KIT_ALLOW_ROOT=1` | **rootless Docker 는 컨테이너 내부가 root.** Kit 이 root 실행을 거부하고 **segfault** (실측) |
 | `PYTHONUNBUFFERED=1` | TTY 가 아니면 stdout 버퍼링 → **로그가 지연되거나 크래시 시 증발** |
 
 > [!danger] `NVIDIA_DRIVER_CAPABILITIES` 가 이 파일에서 가장 중요한 한 줄
