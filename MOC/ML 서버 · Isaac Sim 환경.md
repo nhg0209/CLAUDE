@@ -159,6 +159,146 @@ cd ~/rl-racing && docker build -t isaac-rl:$USER -f docker/Dockerfile .
 > `add-apt-repository -y ppa:deadsnakes/ppa` — 프록시/DNS 로 막히면 여기서 죽는다.
 > 그 경우 Python 3.11 이 이미 든 베이스 이미지로 교체하는 편이 빠르다.
 
+### 4-1. Dockerfile 블록별 해설
+
+#### ⭐ 대전제 — 이미지 안에 GPU 드라이버는 없다
+
+```
+호스트 (ml104)                       컨테이너
+├── NVIDIA 드라이버 595.84  ───────→  실행 시점에 bind-mount 로 주입
+│   (libcuda.so, Vulkan ICD)          (nvidia-container-toolkit 이 수행)
+└── docker                            이미지가 담는 것:
+                                      └── CUDA runtime/math 라이브러리 (12.8.1)
+```
+**드라이버(호스트) ≠ CUDA toolkit(이미지).** `nvidia-smi` 의 `CUDA Version: 13.2` 는
+드라이버가 지원하는 **최대치**이고, 이미지는 12.8 을 쓰므로 하위 호환으로 동작한다 (§1 에서 실증).
+
+#### `FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04`
+
+| 변종 | 포함 | 판단 |
+|---|---|---|
+| `base` | `libcudart` 만 | cuBLAS/cuDNN 없음 → torch 불가 |
+| **`runtime`** ✅ | + cuBLAS, cuFFT, cuDNN, **nvrtc** | 채택 |
+| `devel` | + `nvcc`, 헤더 (+3GB) | torch wheel 은 미리 컴파일되어 불필요 |
+
+> [!tip] `devel` 이 필요해지는 유일한 경우
+> 무언가가 **CUDA 커널을 직접 컴파일**할 때. Isaac Lab 의 **NVIDIA Warp** 는 JIT 컴파일을 하지만
+> `nvrtc`(runtime 에 포함)를 쓰므로 괜찮다. `nvcc: not found` / `CUDA_HOME` 에러가 나면
+> **`runtime` → `devel` 로 한 단어만 바꾸면 된다.**
+
+**왜 22.04 인가** (호스트는 24.04인데):
+```
+Isaac Sim 5.1 → Python 3.11 로 컴파일 (권장이 아니라 ABI 고정)
+Ubuntu 22.04  → 기본 3.10, GLIBC 2.35 ✅ (요구 2.35+)
+Ubuntu 24.04  → 기본 3.12. 게다가 패키지가 t64 계열로 개명 (libasound2 → libasound2t64)
+```
+컨테이너 유저스페이스는 호스트와 완전히 별개다. 커널만 공유한다.
+
+#### ENV 블록
+
+| 변수 | 없으면 |
+|---|---|
+| `DEBIAN_FRONTEND=noninteractive` | `tzdata` 가 지역 선택 프롬프트를 띄우고 **빌드가 영원히 멈춘다** |
+| ⭐ `NVIDIA_DRIVER_CAPABILITIES=all` | 기본값 `compute,utility` 에는 **`graphics` 가 없다** → Vulkan ICD 미주입 → **headless 여도 Kit 초기화에서 사망** |
+| `OMNI_KIT_ACCEPT_EULA` 외 2개 | 첫 실행에 EULA 프롬프트 → 비대화형 학습이 멈춤 |
+| `PYTHONUNBUFFERED=1` | TTY 가 아니면 stdout 버퍼링 → **로그가 지연되거나 크래시 시 증발** |
+
+> [!danger] `NVIDIA_DRIVER_CAPABILITIES` 가 이 파일에서 가장 중요한 한 줄
+> 없을 때 나는 에러(*"Failed to create Vulkan instance"*, *"carb::windowing failed"*)가
+> 전부 **GPU 인식 실패처럼 보인다.** `compute` 만으로도 `nvidia-smi` 와 PyTorch 는 정상 동작하므로
+> **§1 의 4GB 할당 테스트만으로는 이 항목이 검증되지 않는다.**
+
+#### apt 블록 — 왜 전부 한 `RUN` 인가
+
+`RUN` 하나 = layer 하나. 쪼개면 두 가지가 깨진다:
+- **stale index**: `update` layer 가 캐시 히트되면 낡은 목록으로 설치 → `404`
+- **크기**: layer 는 추가만 되고 삭제가 소급되지 않는다. `rm -rf /var/lib/apt/lists/*` 는 **같은 RUN 안**이어야 실제로 줄어든다
+
+| 그룹 | 패키지 | 역할 |
+|---|---|---|
+| PPA 도구 | `software-properties-common ca-certificates gnupg` | `add-apt-repository` + 서명 검증 |
+| ⭐ Python | `python3.11{,-dev,-venv,-distutils}` | 22.04 기본은 3.10. **잘못된 버전이면 pip 이 wheel 이 없다며 거부** |
+| 빌드 | `build-essential cmake ninja-build` | 공식 문서 명시 (robomimic 요구) |
+| ⭐ Vulkan | `libvulkan1 vulkan-tools mesa-vulkan-drivers` | loader + 진단 + fallback ICD |
+| GL/EGL | `libgl1 libglu1-mesa libegl1 libgles2 libglib2.0-0` | `libegl1` 은 **headless 오프스크린 렌더링** = `--video` 녹화의 핵심 |
+| ⚠️ X11 | `libsm6 libxext6 libxrender1 libxrandr2 libxinerama1 libxcursor1 libxi6 libxkbcommon-x11-0 libxcb-cursor0` | **창을 안 띄워도 필요** |
+| Chromium | `libasound2 libnss3 libatk-bridge2.0-0 libgtk-3-0` | Kit 일부 UI 가 내장 CEF |
+
+> [!warning] ⚠️ X11 라이브러리가 headless 에서도 필요한 이유 — Docker 실패 원인 1위
+> ```
+> Kit 의 .so 들이 이 라이브러리에 링크되어 있다
+>         ↓
+> 창을 만들 때가 아니라 **모듈 로드 시점**에 해석된다
+>         ↓
+> error while loading shared libraries: libXrandr.so.2: cannot open shared object file
+>         ↓
+> import 단계에서 사망. "화면이 없어서" 가 아니다
+> ```
+
+**Vulkan 은 loader 와 ICD 가 한 쌍이다:**
+```
+libvulkan1 (loader) ──찾는다──→ NVIDIA Vulkan ICD
+                                  ↑ 호스트 드라이버에서 주입
+                                    (NVIDIA_DRIVER_CAPABILITIES=all 필요)
+```
+둘 중 하나만 있으면 실패한다. ENV 블록과 apt 블록이 **여기서 연결된다.**
+
+#### venv — "컨테이너가 격리인데 왜 또?"
+
+| 이유 | 설명 |
+|---|---|
+| ⭐ Python 확정 | 이미지에 3.10(시스템)과 3.11(deadsnakes)이 **둘 다** 있다. `pip` 가 어디 붙을지 불확실 |
+| `PATH` | `/opt/venv/bin` 을 앞에 두면 `python`·`pip` 가 무조건 3.11 |
+| Isaac Lab 연동 | `isaaclab.sh` 가 **활성 venv 를 자동 감지**한다 |
+| 충돌 회피 | apt-python 패키지와 pip 패키지가 안 섞인다 |
+
+#### ⭐ pip 설치 — 순서가 핵심
+
+```
+isaacsim[all] 은 의존성으로 torch 를 끌고 온다 (기본 빌드)
+
+순서를 바꾸면: torch(cu128) → isaacsim → resolver 가 torch 를 덮어씀 → cu128 아님 → Blackwell 불가
+지금 순서:     isaacsim → torch -U 로 cu128 강제 덮어쓰기 → cu128 최종 승리 ✅
+```
+
+**`--extra-index-url` 과 `--index-url` 은 다른 옵션이다:**
+```
+--extra-index-url   PyPI 에 "추가로" 본다   (PyPI + pypi.nvidia.com)
+--index-url         PyPI 를 "대체" 한다      (오직 그 저장소)
+```
+- isaacsim 줄은 `--extra-index-url` — 나머지 의존성(numpy 등)은 PyPI 에 있으므로
+- **torch 줄은 `--index-url`** — PyPI 기본 torch 는 다른 CUDA 빌드라, 대체해야 **cu128 이 보장**된다
+
+**`[all,extscache]`**: `extscache` 는 extension 캐시를 **wheel 안에 담아 배포**한다.
+없으면 공식 경고에 그대로 걸린다 — *"can take upwards of 10 minutes ... on the first run of each experience file"*.
+공용 서버에서는 **되느냐/안 되느냐의 차이**가 된다.
+
+**`--no-cache-dir`**: pip 캐시 15~20GB 를 이미지에 남기지 않는다. 재빌드 시 재다운로드가 대가지만, 한 번 빌드해 계속 쓸 이미지이므로 크기를 택했다.
+
+#### ⭐ 이 이미지에 일부러 안 넣은 것
+
+| 제외 | 이유 |
+|---|---|
+| **Isaac Lab** | `/workspace` 에 clone. 이미지에 넣으면 **코드 한 줄 고칠 때마다 20분 재빌드** |
+| **우리 프로젝트 코드** | 같은 이유. git 관리 + bind-mount |
+| f1tenth_gym | Tier 1 은 별개 환경 |
+
+```
+이미지 = "거의 안 바뀌는 것" (OS, Python, CUDA, Isaac Sim)  ← 빌드 20분
+마운트 = "자주 바뀌는 것"   (Isaac Lab, 우리 코드, 로그)   ← 즉시 반영
+```
+**이 경계를 잘못 그으면 20분짜리 빌드를 하루에 열 번 하게 된다.**
+
+#### 실패 가능 지점
+
+| # | 지점 | 증상 | 대응 |
+|---|---|---|---|
+| 1 | `add-apt-repository ppa:deadsnakes` | 빌드 중단 | Python 3.11 포함 베이스로 교체 |
+| 2 | 패키지 이름 불일치 | `Unable to locate package` | `apt-cache search` 로 22.04 실제 이름 확인 |
+| 3 | `nvcc` 요구 의존성 | `CUDA_HOME not set` | `runtime` → `devel` |
+| 4 | 디스크 | `no space left on device` | 40~60GB 필요. `df -h ~` |
+| 5 | isaacsim 다운로드 | 타임아웃 | `--timeout 300`, tmux 라 재시도 용이 |
+
 ---
 
 ## 5. 실행 스크립트
