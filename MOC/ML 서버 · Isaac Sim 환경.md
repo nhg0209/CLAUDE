@@ -1,7 +1,7 @@
 ---
 tags: [MOC, infra, isaac-sim, tier2]
 작성일: 2026-09-14
-상태: 미검증 — 서버에서 STEP 0 실행 전
+상태: STEP 0 검증 완료 (2026-09-14) — 빌드 단계
 ---
 
 # ML 서버 · Isaac Sim 환경 구축
@@ -10,9 +10,8 @@ tags: [MOC, infra, isaac-sim, tier2]
 > [[프로젝트 스택]] §11(3-Tier) 의 **Tier 2 를 실행 가능하게 만드는** 환경 문서.
 > §12-4 리스크 #2(선형 타이어 모델)의 해결 경로이기도 하다.
 
-> [!warning] 검증 상태
-> Isaac Sim/Isaac Lab 정보는 **공식 저장소에서 2026-09-14 확인**한 사실.
-> 서버 쪽(드라이버 버전, rootless docker 동작)은 **아직 미확인**. STEP 0 를 먼저 실행할 것.
+> [!success] 검증 상태 — STEP 0 전 항목 통과 (2026-09-14)
+> Isaac Sim/Isaac Lab 정보는 공식 저장소에서 확인. **서버 쪽도 실측 완료.** 아래 §1 표 참조.
 
 ---
 
@@ -27,11 +26,40 @@ tags: [MOC, infra, isaac-sim, tier2]
 | RAM | 64 GB | 32 GB 이상 | ✅ |
 | 디스크 | 1.8 TB (여유 1.7 TB) | 이미지 40~60 GB | ✅ |
 | OS | Ubuntu 24.04 | 22.04 권장 | ⚠️ **컨테이너를 22.04 로** |
-| 드라이버 | ❓ **미확인** | **580.65.06 이상 권장** | ⚠️ **유일한 잠재 blocker** |
+| 드라이버 | ✅ **595.84** (실측) | 580.65.06 이상 권장 | ✅ **여유 충족** |
 
-> [!danger] 드라이버만은 본인이 못 고친다
-> `sudo` 가 `apt` 로만 제한되어 있다. 드라이버가 580 미만이면 **관리자에게 요청**해야 한다.
-> Blackwell(sm_120) 자체는 570+ 를 요구하므로 2026-08 세팅이면 충족 가능성이 높지만 **확인 전에는 가정하지 말 것.**
+### ★ STEP 0 실측 결과 (2026-09-14, `hyeonggyun@ml104`, `192.168.50.112`)
+
+```
+GPU            NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+VRAM           97,887 MiB   (사용 중 16 MiB, util 0%)
+Driver         595.84       ← 권장 580.65.06 이상 충족
+nvidia-smi     CUDA Version: 13.2  (드라이버 레벨)
+```
+
+| 검사 | 결과 |
+|---|---|
+| rootless docker 이미지 pull | ✅ |
+| `--gpus all` + `NVIDIA_DRIVER_CAPABILITIES=all` 로 컨테이너 GPU 접근 | ✅ |
+| **`torch 2.8.0+cu128` 로 GPU 4 GB 실제 할당** | ✅ `mem_get_info = (96.9 GB free, 102 GB total)` |
+| `hostname -I` | `192.168.50.112` ✅ (`172.17.0.1` 은 docker 브리지) |
+
+> [!note] 드라이버 CUDA 13.2 vs 우리가 쓰는 cu128
+> 하위 호환으로 정상 동작함이 **위 4 GB 할당 테스트로 실증**되었다. 추측이 아니다.
+
+> [!warning] `[GPU:512M]` 프롬프트는 허수다
+> 쉘 프롬프트에 `[GPU:512M]` 이 뜨지만 **`PS1` 에 문자열로 하드코딩**되어 있고
+> (`\[\e[38;5;245m\][GPU:512M]\[\e[0m\]`), `~/.bashrc` · `/etc/profile.d/` grep 결과가 비었으며,
+> 실제로 4 GB 할당이 성공하고 96.9 GB 가용이 보고된다.
+> **할당량이 아니라 관리자가 박아둔 장식/낡은 표시.** 무시할 것.
+
+> [!question] ⚠️ 미확인 — GPU 가 2장일 가능성
+> `--format=csv` 출력에 **동일 행이 2개** 나왔다 (`nvidia-smi` 표는 `head -12` 로 잘림).
+> 안내 문서의 *"추후 2장으로 변경 예정"* 이 반영됐을 수 있다. `nvidia-smi -L` 로 확인할 것.
+>
+> **2장이면 전략이 달라진다**: Isaac Lab 한 판을 두 장에 쪼개는 것보다
+> `CUDA_VISIBLE_DEVICES` 로 한 장씩 잡아 **서로 다른 seed/하이퍼파라미터를 동시 실행**하는 편이 낫다.
+> → [[SAC (Haarnoja 2018)]] §5 의 *"seed 5개 min/max 밴드"* 프로토콜을 절반 시간에 채울 수 있다.
 
 ---
 
@@ -124,7 +152,12 @@ CMD ["bash"]
 ```bash
 tmux new -s build                   # 15~20 GB 다운로드. 반드시 tmux 안에서
 cd ~/rl-racing && docker build -t isaac-rl:$USER -f docker/Dockerfile .
+# Ctrl+b d 로 분리, tmux attach -t build 로 복귀
 ```
+
+> [!tip] 빌드 중 실패하기 쉬운 지점
+> `add-apt-repository -y ppa:deadsnakes/ppa` — 프록시/DNS 로 막히면 여기서 죽는다.
+> 그 경우 Python 3.11 이 이미 든 베이스 이미지로 교체하는 편이 빠르다.
 
 ---
 
