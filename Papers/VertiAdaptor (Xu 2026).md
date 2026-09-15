@@ -35,8 +35,8 @@ arxiv: 2603.06887
 | $f_\theta$ | 상태 변화율을 내놓는 forward kinodynamic model = **ODE의 우변** | §III-A |
 | $\theta = \{\theta_1,\dots,\theta_k\}$ | 각 기저함수 신경망의 가중치 | **오프라인 학습 후 frozen** (§III-D-1) |
 | $\boldsymbol{\alpha} = [\alpha_1,\dots,\alpha_k]$ | 기저함수 **결합 계수** | **온라인에서 5초마다 최소제곱** (§III-D-2) |
-| $G_i(\cdot\,;\theta_i)$ | $i$번째 neural ODE 기저함수. RK4로 적분한 상태 변화 | §III-C |
-| $g_i$ | $G_i$ 로 적분되기 전의 **상태 변화율** | §III-C |
+| $G_i(\cdot\,;\theta_i)$ | $g_i$ 를 $\Delta t$ 동안 **RK4로 적분**한 것. 상태 **변화량**을 출력 | §III-C, Alg. 1 line 17 |
+| $g_i$ | **신경망 본체.** 상태 **변화율**을 출력. $\theta_i$ 가 붙는 곳 | §III-C, Alg. 1 line 3 |
 | $e_t = [e_{\text{elev}}, e_{\text{sem}}]$ | 차량 아래 지형의 elevation + semantic embedding | §III-B |
 | $k$ | 기저함수 개수 = **24** | Table I |
 | **SWAE** | Sliced-Wasserstein Autoencoder [16]. elevation·semantic 맵을 latent로 압축 | §III-B, §IV-A. **원리 설명은 없음** |
@@ -337,3 +337,60 @@ Table I의 `Output dimension: 6` 이 그 결과다.
 > [!question] SWAE 학습에 대한 서술이 논문에 없다 ❓
 > 언제·어떤 데이터로 학습했는지, kinodynamic 모델과 **따로인지 합동인지** 전부 서술이 없다.
 > 앞 질문의 "SWAE 대체 실험이 없다"와 합치면, SWAE는 이 논문에서 근거가 가장 얇은 구성요소다.
+
+### Q. §III-C의 $G_i$ 와 $g_i$ 는 각각 무엇인가?
+
+**A.** 핵심 차이는 **미분(변화율) vs 적분(변화량)** 이다. §III-C의 식이 정의 전부다:
+
+$$x_{t+1} - x_t = \sum_{i=1}^{k}\alpha_i \int_{t}^{t+\Delta t} g_i\big(x(\tau), u(\tau), e(\tau)\big)\,d\tau
+= \sum_{i=1}^{k}\alpha_i\,G_i(x_t, u_t, e_t;\theta_i)$$
+
+| | 무엇 | 출력 |
+|---|---|---|
+| $g_i$ | **신경망 그 자체.** 상태 **변화율**을 낸다 | 6차원 (Table I `Output dimension: 6`) |
+| $G_i$ | $g_i$ 를 $\Delta t$ 동안 **적분한 것.** 상태 **변화량**을 낸다 | 6차원 |
+
+> §III-C: *"**$g_i$ is the basis function state change rate to be integrated into $G_i$.**
+> Each $G_i$ outputs the predicted state change."*
+
+**θ는 $g_i$ 에 붙는다.** Algorithm 1 line 3:
+
+> *"Initialize each basis function state change rate **$g_i$ as a neural network with parameters $\theta_i$**"*
+
+학습되는 신경망은 $g_i$ 이고 $G_i$ 는 적분기를 통과시켜 얻는 **유도량**이다.
+`G_i(· ; θ_i)` 에서 세미콜론 앞은 입력, 뒤는 파라미터.
+
+**계산은 RK4.** §III-C: *"we approximate the integral $G_i$ using the **fourth-order Runge-Kutta (RK4)** numerical integrator."*
+
+Algorithm 1:
+
+```
+16:  for i = 1, ..., k do
+17:      G_i(·) ← RK4(g_i, x_pred_{t-1}, u_{t-1}, Δt)      ← k=24번 반복
+18:  end for
+19:  x_pred_t ← x_pred_{t-1} + Σ(i=1..k) α_i · G_i(·)      ← 그다음 결합
+```
+
+한 스텝마다 **기저함수 24개를 각각 따로 적분**하고 그다음 계수로 합친다.
+
+**★ 왜 둘로 나누는가 — 최소제곱이 성립하려면 $G$ 수준이어야 한다.**
+
+수학적으로는 적분이 선형이라 $\sum\alpha_i\int g_i = \int\sum\alpha_i g_i$ 로 같다.
+그러나 **계산 순서가 달라지면 할 수 있는 일이 달라진다.**
+
+```
+(A) 적분 먼저, 결합 나중  ← 논문의 방식
+    θ가 frozen이므로 G_1..G_24를 데이터만으로 미리 계산 가능
+       ↓  y ≈ α_1·G_1 + ... + α_24·G_24
+    선형회귀 → α를 closed form으로
+
+(B) 결합 먼저, 적분 나중
+    α가 적분 안에 들어가 미리 계산해둘 수 없음 → 매번 gradient
+```
+
+식 (1)이 그램 행렬인 이유가 이것이다 — 성분이 전부 $\langle G_i, G_j\rangle$, $\langle y, G_i\rangle$ 로
+**$G$ 끼리의 내적**이다.
+
+**관측된 상태 변화 $y$ 와 단위가 같은 것은 $G_i$ 이지 $g_i$ 가 아니다.**
+$g_i$ 는 변화율이라 $y$ 와 직접 비교할 수 없다. 적분으로 단위를 맞춘 뒤에야 선형 문제가 되고,
+그 결과가 §III-C의 $O(k^3)$ 이다.
