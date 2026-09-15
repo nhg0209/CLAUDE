@@ -18,6 +18,12 @@ F1TENTH 1/10 물리용 URDF 생성기.
   f1tenth_gym_ros/config/ego_racecar.xacro    wheel_radius, wheel_length
   f1tenth_URDF/robot.urdf (Onshape CAD)       track = 0.2255  (순기구학으로 추출)
 
+구동계: 4WD. 실차는 모터 1개가 센터 샤프트로 4륜에 토크를 보낸다.
+        4개 독립 continuous joint + 균등 토크 = open differential 의 정확한 모델.
+        ⚠️ 센터 샤프트가 솔리드라면 앞·뒤 축 평균 속도가 기계적으로 묶여 있는데
+           URDF 는 그 닫힌 구속을 표현할 수 없다 (더블 위시본과 같은 한계).
+           저마찰 휠스핀 거동에서 차이가 난다 → PhysX gear joint 검토 대상.
+
 좌표계: ROS REP-103.  +x 전방, +y 좌측, +z 상방.
 원점:   base_link = 뒤 차축 중심, 지면 높이 (z=0).
         따라서 spawn 을 z=0 으로 하면 바퀴가 지면에 정확히 닿는다.
@@ -58,9 +64,17 @@ PARAMS = dict(
     steer_limit   = 0.4189,  # rad   dynamics.yaml s_min/s_max
     steer_vel     = 3.2,     # rad/s dynamics.yaml sv_min/sv_max
     steer_effort  = 5.0,     # N m   서보 토크 (추정 — 실측 전까지 여유값)
-    front_effort  = 0.05,    # N m   ★ 앞바퀴는 무구동. 베어링 저항 수준만 준다
-                             #       (구동 토크를 주면 실수로 4WD 가 된다)
     knuckle_size  = 0.04,    # m     너클을 정육면체로 근사한 한 변
+
+    # ── ★ 구동계 ─────────────────────────────────────────────────
+    # 실차는 모터 1개 -> 센터 샤프트 -> 앞/뒤 디퍼렌셜 -> 4륜 (shaft-driven 4WD).
+    # 4WD 는 앞타이어에도 Fx 를 흘리므로 friction ellipse
+    #     Fy,max = sqrt((mu*Fz)^2 - Fx^2)
+    # 에 따라 앞타이어의 횡력 여유가 직접 깎인다 = 파워 온 언더스티어.
+    # 2WD 로 모델링하면 이 현상이 아예 없어지고, 가속과 조향의 결합이라는
+    # 우리 연구의 핵심 슬립 발생원을 놓친다.
+    driven_wheels = 4,       # 4륜 구동
+    effort_margin = 1.5,     # a_max 대비 토크 여유
     v_max_mps     = 10.0,    # m/s   휠 각속도 한계 산출용 (IQP 최대 8.69 위로 여유)
     a_max         = 9.51,    # m/s^2 dynamics.yaml — 휠 토크 한계 산출용
 
@@ -172,7 +186,7 @@ def build(p, s):
         """너클의 자식이면 너클 원점(이미 z=r), 섀시의 자식이면 휠 반경만큼 올린다."""
         return 0.0 if parent.endswith("hinge") else r
 
-    def wheel(name, x, y, parent, jname, driven):
+    def wheel(name, x, y, parent, jname):
         lk = ET.SubElement(root, "link", name=name)
         # 스핀축 = y  →  Iyy 가 스핀 관성
         inertial(lk, p["m_wheel"], "0 0 0", (s["Iw_tran"], s["Iw_spin"], s["Iw_tran"]))
@@ -187,10 +201,10 @@ def build(p, s):
         ET.SubElement(j, "child", link=name)
         ET.SubElement(j, "origin", xyz=f"{x} {y} {z_of(parent, r)}", rpy="0 0 0")
         ET.SubElement(j, "axis", xyz="0 1 0")
-        if driven:
-            tq = p["m_total"] * p["a_max"] * r / 2.0 * 1.5   # 뒤 두 바퀴가 나눠 받는다 + 여유
-        else:
-            tq = p["front_effort"]                            # 앞바퀴는 무구동
+        # ★ 4륜 구동. 전체 구동력을 구동륜 수로 나눈다.
+        #   "4륜에 같은 토크" 는 편법이 아니라 open differential 의 정확한 모델이다
+        #   (open diff 는 토크를 균등 분배하고 속도는 자유롭게 둔다).
+        tq = (p["m_total"] * p["a_max"] * r / p["driven_wheels"]) * p["effort_margin"]
         # ⚠️ URDF 의 velocity 는 rad/s 다. USD 로 갈 때 변환기가 단위를 어떻게 다루는지
         #    확인이 필요하다 (USD 의 angular drive 관련 값은 degrees 계열). 변환 후
         #    inspect_usd.py 의 "관절 속도 한계" 절로 실측하라.
@@ -217,11 +231,11 @@ def build(p, s):
         ET.SubElement(j, "limit",
                       lower=f"{-p['steer_limit']}", upper=f"{p['steer_limit']}",
                       effort=f"{p['steer_effort']}", velocity=f"{p['steer_vel']}")
-        wheel(f"front_{side}_wheel", 0.0, 0.0, hn, f"front_{side}_wheel_joint", driven=False)
+        wheel(f"front_{side}_wheel", 0.0, 0.0, hn, f"front_{side}_wheel_joint")
 
     # ── 뒤 구동륜 ────────────────────────────────────────────────
     for side, sgn in (("left", +1), ("right", -1)):
-        wheel(f"rear_{side}_wheel", 0.0, sgn * hy, "base_link", f"rear_{side}_wheel_joint", driven=True)
+        wheel(f"rear_{side}_wheel", 0.0, sgn * hy, "base_link", f"rear_{side}_wheel_joint")
 
     return root
 
@@ -257,8 +271,12 @@ def main():
     print(f"  조향 한계    ±{p['steer_limit']} rad (±{p['steer_limit']*57.2958:.1f}°)")
     print(f"  휠 각속도    ±{p['v_max_mps']/p['wheel_radius']:.1f} rad/s "
           f"(= ±{p['v_max_mps']} m/s)")
-    tq = p["m_total"] * p["a_max"] * p["wheel_radius"] / 2.0 * 1.5
-    print(f"  휠 effort    뒤(구동) {tq:.3f} N·m / 앞(무구동) {p['front_effort']} N·m")
+    tq = (p["m_total"] * p["a_max"] * p["wheel_radius"] / p["driven_wheels"]) * p["effort_margin"]
+    F = p["m_total"] * p["a_max"]
+    print(f"  구동계       {p['driven_wheels']}WD (shaft-driven, open diff 근사)")
+    print(f"  휠 effort    {tq:.3f} N·m × {p['driven_wheels']}륜 "
+          f"= 구동력 {tq*p['driven_wheels']/p['wheel_radius']:.1f} N "
+          f"(a_max 필요분 {F:.1f} N 의 {p['effort_margin']}배)")
 
     d = os.path.dirname(os.path.abspath(a.out))
     os.makedirs(d, exist_ok=True)
