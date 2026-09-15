@@ -47,11 +47,29 @@ nvidia-smi     CUDA Version: 13.2  (드라이버 레벨)
 > [!note] 드라이버 CUDA 13.2 vs 우리가 쓰는 cu128
 > 하위 호환으로 정상 동작함이 **위 4 GB 할당 테스트로 실증**되었다. 추측이 아니다.
 
-> [!warning] `[GPU:512M]` 프롬프트는 허수다
-> 쉘 프롬프트에 `[GPU:512M]` 이 뜨지만 **`PS1` 에 문자열로 하드코딩**되어 있고
-> (`\[\e[38;5;245m\][GPU:512M]\[\e[0m\]`), `~/.bashrc` · `/etc/profile.d/` grep 결과가 비었으며,
-> 실제로 4 GB 할당이 성공하고 96.9 GB 가용이 보고된다.
-> **할당량이 아니라 관리자가 박아둔 장식/낡은 표시.** 무시할 것.
+> [!danger] ⭐ `[GPU:512M]` 은 **실제 GPU 할당 브로커**다 (2026-09-15 정정)
+> 처음에 "PS1 에 하드코딩된 장식" 으로 판정했으나 **틀렸다.**
+> 연구실에 GPU 할당 브로커가 돌고 있고 프롬프트의 숫자가 현재 할당량이다.
+> ```
+> [gpu-broker] warning: your GPU0 usage 2832 MiB is over your allocation 512 MiB
+>              - the newest process will be paused in 6s
+>  PAUSED  1.4 GiB used / 0.5 GiB allowed
+>    resume   gpu take 2g --gpu 0
+>    killed automatically in 10 min otherwise
+>    dashboard: http://192.168.50.112:9999/
+> ```
+> **오판의 원인 두 가지 — 둘 다 잘못된 추론이었다:**
+> - `~/.bashrc` grep 이 비었다 → 브로커가 다른 경로에서 `PS1` 을 설정했을 뿐
+> - 4 GB 할당 테스트가 통과했다 → 로그의 *"paused in 6s"* 처럼 **유예 시간이 있고**,
+>   그 테스트는 6초 안에 끝나 빠져나갔다
+>
+> **Isaac Sim 은 기동만으로 1.4 GiB 를 쓴다.** 실행 전에 반드시:
+> ```bash
+> gpu take 4g --gpu 0      # Isaac Sim 단독
+> gpu status -d            # 현재 할당·여유
+> ```
+> ⚠️ **"GPU 2장이니 seed 2개 동시" 계획은 할당 상한 확인 후에야 성립한다.**
+> 1024 env 학습은 수십 GB 가 필요하다. 상한을 먼저 알아야 한다.
 
 > [!question] ⚠️ 미확인 — GPU 가 2장일 가능성
 > `--format=csv` 출력에 **동일 행이 2개** 나왔다 (`nvidia-smi` 표는 `head -12` 로 잘림).

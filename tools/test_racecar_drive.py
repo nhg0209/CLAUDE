@@ -24,7 +24,11 @@ import argparse
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="racecar 거동 숫자 검증")
-parser.add_argument("--mu", type=float, default=1.0, help="지면 마찰계수")
+parser.add_argument("--mu", type=float, default=1.0, help="A~C 시험에 쓸 마찰계수")
+parser.add_argument("--mu-sweep", type=str, default="1.0,0.5,0.25,0.12",
+                    help="D 시험의 mu 스윕. 한 프로세스에서 전부 돈다 (앱 기동 1회)")
+parser.add_argument("--effort-scale", type=float, default=4.0,
+                    help="D 시험에서 구동 effort 배율. 마찰 한계를 넘기기 위해 키운다")
 parser.add_argument("--steer", type=float, default=0.2, help="조향 시험값 [rad]")
 parser.add_argument("--wheel-vel", type=float, default=60.0, help="휠 속도 목표 [rad/s]")
 parser.add_argument("--dt", type=float, default=1.0 / 200.0, help="물리 dt")
@@ -52,6 +56,22 @@ from racecar_cfg import RACECAR_CFG, WHEEL_RADIUS  # noqa: E402
 
 BAR = "═" * 76
 DEV = args_cli.device if getattr(args_cli, "device", None) else "cuda:0"
+
+
+def set_ground_friction(mu):
+    """지면 physics material 의 마찰을 런타임에 바꾼다.
+    URDF 에는 존재할 수 없는 값이고, 도메인 랜덤화가 일어나는 지점이 정확히 여기다."""
+    from pxr import Usd, UsdPhysics
+    import omni.usd
+    stage = omni.usd.get_context().get_stage()
+    n = 0
+    for prim in stage.Traverse(Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)):
+        if prim.HasAPI(UsdPhysics.MaterialAPI):
+            api = UsdPhysics.MaterialAPI(prim)
+            api.CreateStaticFrictionAttr().Set(float(mu))
+            api.CreateDynamicFrictionAttr().Set(float(mu))
+            n += 1
+    return n
 
 
 def yaw_of(q):
@@ -142,35 +162,64 @@ def run():
                   "❌ 구동 + 인데 후진한다 — 휠 axis 부호 확인" if dx < -0.05 else
                   "⚠️ 전진하지 않는다 — 토크 부족 / 접지 실패 / damping 과다"))
 
-    # ── D. ★ 마찰 포화 ───────────────────────────────────────────
-    print(f"\n{BAR}\n D. ★ 마찰 포화 — 직진 최대 가속 (mu={args_cli.mu})\n{BAR}")
-    robot.write_root_pose_to_sim(torch.tensor([[0., 0., 0.005, 1., 0., 0., 0.]], device=DEV))
-    robot.write_root_velocity_to_sim(torch.zeros((1, 6), device=DEV))
-    robot.write_joint_state_to_sim(torch.zeros_like(robot.data.joint_pos),
-                                   torch.zeros_like(robot.data.joint_vel))
-    step(int(0.3 / dt), steer=0.0, wvel=0.0)
-    v0 = float(robot.data.root_lin_vel_b[0][0])
-    T = 0.5
-    step(int(T / dt), steer=0.0, wvel=args_cli.wheel_vel * 2)   # 충분히 큰 목표로 포화시킨다
-    v1 = float(robot.data.root_lin_vel_b[0][0])
-    a = (v1 - v0) / T
-    a_limit = args_cli.mu * 9.81
-    wv = [float(x) for x in robot.data.joint_vel[0, wheel_ids]]
-    v_wheel = sum(wv) / len(wv) * WHEEL_RADIUS
-    slip = (v_wheel - v1) / max(abs(v_wheel), 1e-6)
-    print(f"  차체 가속도     a = {a:+.3f} m/s²")
-    print(f"  마찰 한계       μg = {a_limit:.3f} m/s²")
-    print(f"  비율            a/μg = {a/a_limit if a_limit else 0:.2f}")
-    print(f"  휠 원주속도     {v_wheel:.3f} m/s  vs  차체 {v1:.3f} m/s")
-    print(f"  종방향 슬립비   {slip:+.3f}   (양수 = 휠이 앞서 돈다 = 휠스핀)")
+    # ── D. ★ 마찰 포화 — mu 스윕을 한 프로세스에서 ───────────────
+    print(f"\n{BAR}\n D. ★ 마찰 포화 — 직진 최대 가속 (mu 스윕)\n{BAR}")
+
+    # 마찰 한계를 넘기려면 구동력이 충분해야 한다. mu=1.0 에서 a<mu*g 인 것이
+    # "마찰이 막았다" 가 아니라 "토크가 부족했다" 일 수 있기 때문이다.
+    base_eff = robot.actuators["drive"].effort_limit
+    try:
+        robot.actuators["drive"].effort_limit = base_eff * args_cli.effort_scale
+        scaled = True
+    except Exception:                                                  # noqa: BLE001
+        scaled = False
+    print(f"  구동 effort {'x' + str(args_cli.effort_scale) + ' 적용' if scaled else '기본값 유지(배율 적용 실패)'}")
+    print(f"  {'mu':>6} {'a [m/s2]':>10} {'mu*g':>8} {'a/mu*g':>8} {'슬립비':>8}  판정")
+    print(f"  {'-'*62}")
+
+    rows = []
+    for mu in [float(x) for x in args_cli.mu_sweep.split(",")]:
+        n = set_ground_friction(mu)
+        # 리셋
+        robot.write_root_pose_to_sim(torch.tensor([[0., 0., 0.005, 1., 0., 0., 0.]], device=DEV))
+        robot.write_root_velocity_to_sim(torch.zeros((1, 6), device=DEV))
+        robot.write_joint_state_to_sim(torch.zeros_like(robot.data.joint_pos),
+                                       torch.zeros_like(robot.data.joint_vel))
+        step(int(0.4 / dt), steer=0.0, wvel=0.0)
+        v0 = float(robot.data.root_lin_vel_b[0][0])
+        T = 0.5
+        step(int(T / dt), steer=0.0, wvel=args_cli.wheel_vel * 4)   # 충분히 큰 목표
+        v1 = float(robot.data.root_lin_vel_b[0][0])
+        a = (v1 - v0) / T
+        lim = mu * 9.81
+        wv = [float(x) for x in robot.data.joint_vel[0, wheel_ids]]
+        v_wheel = sum(wv) / len(wv) * WHEEL_RADIUS
+        slip = (v_wheel - v1) / max(abs(v_wheel), 1e-6)
+        if slip > 0.05 and a <= lim * 1.2:
+            verdict = "마찰 제한 ✅"
+        elif slip < 0.02:
+            verdict = "토크 제한 (마찰 미도달)"
+        else:
+            verdict = "중간"
+        print(f"  {mu:>6.2f} {a:>10.3f} {lim:>8.3f} {a/lim if lim else 0:>8.2f} {slip:>8.3f}  {verdict}")
+        rows.append((mu, a, lim, slip, n))
+
+    if scaled:
+        robot.actuators["drive"].effort_limit = base_eff
+
     print()
-    if a <= a_limit * 1.15:
-        print("  ✅ 가속도가 μg 를 넘지 않는다 — PhysX 의 |F_t| ≤ μF_n 이 작동한다")
-        print("     f1tenth_gym 의 선형 타이어 모델에는 이 한계가 없다 (프로젝트 스택 §8-5-1)")
+    fric = [r for r in rows if r[3] > 0.05]
+    if len(fric) >= 2:
+        (m1, a1, _, _, _), (m2, a2, _, _, _) = fric[0], fric[-1]
+        ratio_mu = m1 / m2 if m2 else 0
+        ratio_a = a1 / a2 if a2 else 0
+        print(f"  ★ 마찰 제한 구간에서: mu 비 {ratio_mu:.2f} 대 가속도 비 {ratio_a:.2f}")
+        print(f"     두 값이 비슷하면 a ∝ mu 가 실증된 것이다 = PhysX 의 |F_t| ≤ mu·F_n")
+        print(f"     f1tenth_gym 의 선형 타이어 모델에는 이 한계가 없다 (프로젝트 스택 §8-5-1)")
     else:
-        print("  ⚠️ 가속도가 μg 를 넘었다 — 예상 밖이다. dt/솔버 반복수를 확인하라")
-    print(f"\n  ★ --mu 를 1.0 / 0.5 / 0.25 로 바꿔 돌려보라.")
-    print(f"     a 가 μ 에 비례해 줄어들면 포화가 실증된 것이다.")
+        print("  ⚠️ 마찰 제한 구간이 2개 미만이다. --effort-scale 을 키우거나")
+        print("     --mu-sweep 에 더 낮은 값(0.08 등)을 넣어라.")
+    print(f"  (material prim {rows[-1][4]}개에 마찰을 적용했다)")
 
     print(f"\n{BAR}")
     return 0
