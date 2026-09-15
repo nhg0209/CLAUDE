@@ -32,6 +32,14 @@ arxiv: 2603.06887
 
 | 용어·기호 | 이 논문에서의 뜻 | 비고 |
 |---|---|---|
+| $f_\theta$ | 상태 변화율을 내놓는 forward kinodynamic model = **ODE의 우변** | §III-A |
+| $\theta = \{\theta_1,\dots,\theta_k\}$ | 각 기저함수 신경망의 가중치 | **오프라인 학습 후 frozen** (§III-D-1) |
+| $\boldsymbol{\alpha} = [\alpha_1,\dots,\alpha_k]$ | 기저함수 **결합 계수** | **온라인에서 5초마다 최소제곱** (§III-D-2) |
+| $G_i(\cdot\,;\theta_i)$ | $i$번째 neural ODE 기저함수. RK4로 적분한 상태 변화 | §III-C |
+| $g_i$ | $G_i$ 로 적분되기 전의 **상태 변화율** | §III-C |
+| $e_t = [e_{\text{elev}}, e_{\text{sem}}]$ | 차량 아래 지형의 elevation + semantic embedding | §III-B |
+| $k$ | 기저함수 개수 = **24** | Table I |
+| ⚠️ $\alpha$ (Alg. 1) | **학습률로도 쓰인다** — line 1, line 25 | 계수 $\alpha$ 와 충돌 |
 
 ---
 
@@ -99,3 +107,59 @@ $$x_{t+1} - x_t = \sum_{i=1}^{k}\alpha_i\,G_i(x_t, u_t, e_t;\theta_i)$$
 > | `[28]` | Finn, Rajeswaran, Kakade, Levine, *"Online meta-learning"*, ICML 2019 |
 >
 > `[28]`은 §II-B의 *"Methods such as online meta-learning [28]"* 에서는 맞게 쓰였다. MAML 귀속만 어긋난다.
+
+### Q. "The function $f_\theta$ is parameterized by a set of neural ODEs" — parameterized가 무슨 뜻인가?
+
+**A.** 두 겹이다.
+
+**① $f_\theta$ 의 아래첨자** — 함수를 하나로 고정하지 않고 **파라미터로 지정되는 함수 집합**으로 둔다는 표시.
+$\theta$ 를 정하면 함수 하나가 정해진다. *(일반 표기 관례이고 논문이 정의하지는 않는다.)*
+
+**② "by a set of neural ODEs"** — 그 함수의 **형태**를 무엇으로 잡았는가.
+
+§III-A에서 $f_\theta$ 는 **ODE의 우변**이다:
+
+$$\dot{x}_t = f_\theta(x_t, u_t, e_t)$$
+
+고전 kinodynamic 모델은 이 우변을 물리 법칙으로 손으로 쓰고, neural ODE는 **신경망으로 대체**한다.
+§II-A가 고전 모델을 버린 이유:
+
+> *"The assumption of known, constant terrain parameters rarely holds in practice, and the models often fail to capture
+> nonlinear effects such as **dynamic loading, tire deformation, and complex multi-terrain interactions**."*
+
+적분은 RK4로 수치 계산한다 (§III-C).
+
+**③ ★ 이 논문에서 파라미터가 두 층으로 갈린다.** §III-C:
+
+$$x_{t+1} - x_t = \sum_{i=1}^{k}\alpha_i\,G_i(x_t, u_t, e_t;\theta_i)$$
+
+> *"where $G_i(\cdot;\theta_i)$ are a set of learnable basis functions **parameterized by neural ODEs and $\theta_i$**"*
+
+| 파라미터 | 무엇 | 언제 정해지나 |
+|---|---|---|
+| $\theta$ | 기저함수 신경망 가중치 | **오프라인** — Alg. 1 line 25: $\theta \leftarrow \theta - \alpha\nabla_\theta L$ |
+| $\boldsymbol{\alpha}$ | 기저함수 결합 계수 | **온라인** — 최소제곱 식 (1) |
+
+§III-D-1 마지막 문장:
+
+> *"After convergence, the **basis functions are frozen** and ready for online adaptation."*
+
+§III-D-2:
+
+> *"During deployment, VA continuously adapts **the coefficients $\alpha$ every 5 seconds** using recent trajectories."*
+
+신경망 가중치를 건드리지 않고 계수 $k=24$개만 다시 풀기 때문에 gradient가 필요 없고,
+§III-C의 표현대로 *"a maximum time complexity of $O(k^3)$"* 로 끝난다 (→ Table II의 0.31 s).
+
+구조는 Table I: 기저함수 $k = 24$, hidden dim $\lfloor 64\sqrt{k}\rfloor = 313$, ReLU, 출력 6차원(6-DoF 상태 변화).
+
+> [!warning] Algorithm 1의 기호 충돌
+> $\alpha$ 가 같은 알고리즘 안에서 두 뜻으로 쓰인다.
+>
+> | 위치 | 뜻 |
+> |---|---|
+> | line 1 *"learning rate $\alpha$"* | 학습률 |
+> | line 10 *"Compute coefficients $\alpha^{*(f)}$"* | 기저함수 계수 |
+> | line 25 $\theta \leftarrow \theta - \alpha\nabla_\theta L$ | 학습률 |
+>
+> 논문은 이를 언급하지 않는다.
