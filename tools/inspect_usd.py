@@ -55,7 +55,8 @@ def authored(attr):
 
 
 def main() -> int:
-    stage = Usd.Stage.Open(args_cli.usd_path)
+    # payload 가 있으면 기본 Open 이 안 열 수 있다. 명시적으로 전부 로드한다.
+    stage = Usd.Stage.Open(args_cli.usd_path, Usd.Stage.LoadAll)
     if stage is None:
         print(f"❌ 열 수 없음: {args_cli.usd_path}")
         return 1
@@ -185,7 +186,23 @@ def main() -> int:
         lr0 = authored(base.GetLocalRot0Attr())
         if lr0 is not None:
             print(f"      localRot0={lr0}   ← URDF 의 임의 축이 여기 흡수된다")
+        # ★ 속도/힘 한계 — 스키마 이름을 추측하지 않고 실제 속성을 훑는다.
+        #   URDF 의 <limit velocity> 는 rad/s 인데 USD 의 angular 계열은 degree 계열이라
+        #   변환기가 단위를 바꿨는지 여기서 실측해야 한다.
+        extra = []
+        for at in j.GetAttributes():
+            n = at.GetName()
+            if at.HasAuthoredValue() and any(k in n.lower() for k in
+                                             ("maxjointvelocity", "maxforce", "velocity",
+                                              "armature", "jointfriction", "maxlinear",
+                                              "maxangular")):
+                extra.append(f"{n}={at.Get()}")
+        if extra:
+            print(f"      한계/물성: {'  '.join(extra)}")
     print(f"  → {len(joints)}개")
+    print("  ⚠️ 휠 joint 의 최대 속도를 확인하라. URDF 는 196.85 rad/s 를 줬다.")
+    print("     USD 쪽에 196.85 가 '도/초' 로 들어갔다면 실제로는 3.4 rad/s = 0.17 m/s 이고")
+    print("     차가 사실상 움직이지 않는다. 값이 11279 근처면 도/초로 정상 변환된 것이다.")
 
     print(f"\n{BAR}\n 6. Drive  (★ target_type='none' 은 API 를 없애지 않고 게인을 0 으로 만든다)\n{BAR}")
     print("  Isaac Lab 의 ImplicitActuator 는 DriveAPI 가 '존재해야' 런타임에 게인을 써넣는다.")
@@ -197,8 +214,9 @@ def main() -> int:
         for s in which:
             inst = s.split(":", 1)[1] if ":" in s else "angular"
             api = UsdPhysics.DriveAPI(p, inst)
-            st = authored(api.GetStiffnessAttr()) or 0.0
-            dm = authored(api.GetDampingAttr()) or 0.0
+            _st, _dm = authored(api.GetStiffnessAttr()), authored(api.GetDampingAttr())
+            st = 0.0 if _st is None else _st
+            dm = 0.0 if _dm is None else _dm
             ty = authored(api.GetTypeAttr()) or "(기본)"
             mf = authored(api.GetMaxForceAttr())
             zero = abs(st) < 1e-9 and abs(dm) < 1e-9

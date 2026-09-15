@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# 컨테이너 안에서 실행. Isaac Sim 이 뜰 수 있는 상태인지 한 번에 진단한다.
+# 컨테이너 안에서 실행. Isaac Sim 이 "뜰 수 있는 상태인지" 만 본다 (앱 기동 전 단계).
+#
+# ⚠️ 설치 검증은 이것으로 하지 말 것. pxr 은 AppLauncher 가 sys.path 에 올려주므로
+#    맨몸 import 로는 판단할 수 없다. 설치가 실제로 동작하는지는:
+#        cd /workspace/IsaacLab && ./isaaclab.sh -p /workspace/tools/verify_isaaclab.py
+#    이 스크립트의 쓸모는 Vulkan ICD 와 OMNI_KIT_ALLOW_ROOT 같은 "기동 전 조건" 뿐이다.
 echo "══ 1. PyTorch / CUDA ══"
 python -c "import torch;print(' ',torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))" 2>&1 | tail -2
 

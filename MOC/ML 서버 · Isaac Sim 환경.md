@@ -426,3 +426,89 @@ Isaac Sim  (Tier 2) → 한계 거동 학습 + 최종 policy. 저작 비용 감�
 - [[프로젝트 스택]] §8-5-1(선형 타이어 정량 확인) · §11(3-Tier) · §12-4(리스크 #2)
 - [[SAC v2 (Haarnoja 2018)]] — 이 환경에서 돌릴 알고리즘
 - [[Domain Randomization]] · [[질문 로그]]
+
+---
+
+## 10. USD 를 호스트에서 눈으로 확인하는 방법 (2026-09-15 실측)
+
+> [!warning] 결론: **순수 웹 USD 뷰어는 없다.** USD 는 웹 포맷이 아니다.
+> three.js 에는 `USDZExporter` 만 있고 loader 가 없다. `<model-viewer>` 의 USDZ 지원은
+> iOS AR 전용이다. NVIDIA 의 웹 USD 뷰어는 RTX 서버 + 스트리밍이 필요한데
+> rootless Docker 의 inbound 차단 때문에 불가능하다.
+> → **glTF 로 변환해서 보거나, 컨테이너에서 렌더해서 이미지를 가져온다.**
+
+### 실측한 것
+
+| 시도 | 결과 |
+|---|---|
+| `pip install usd2gltf` → primitive USD 변환 | ⚠️ **node 계층만 나오고 `meshes: []`.** `Cube`/`Cylinder` 를 tessellate 하지 않는다 |
+| 같은 도구로 `UsdGeom.Mesh` 변환 | ✅ `meshes: 1, accessors: 2` — Mesh 는 된다 |
+| `pip install usd-core` 의 CLI | ⚠️ **`usdcat`/`usdview`/`usdrecord` 를 포함하지 않는다.** Isaac Sim 번들에만 있다 |
+
+우리 `racecar.usd` 는 `Cube` + `Cylinder` primitive 이므로 **`usd2gltf` 로는 빈 glTF 가 나온다.**
+
+### ★ 해법 — `tools/usd_to_glb.py` (직접 작성, 검증 완료)
+
+primitive 를 삼각형으로 펼쳐 **단일 `.glb`** 로 내보낸다.
+
+```
+Cube, Cylinder, Sphere, Capsule, Cone  → tessellate
+Mesh                                   → n각형을 fan 분할
+world transform 을 정점에 굽는다 (node 변환은 항등 → 뷰어 호환성 최상)
+visual = 파란 불투명 / collision = 주황 반투명 으로 구분
+```
+
+```bash
+# 컨테이너 (Isaac Sim 의 pxr 사용 — 추가 설치 불필요)
+./isaaclab.sh -p /workspace/tools/usd_to_glb.py /workspace/assets/racecar.usd \
+    -o /workspace/assets/racecar_collision.glb --only collision
+
+# 호스트
+scp <이름>@192.168.50.112:~/rl-racing/assets/racecar_*.glb .
+```
+
+**검증 결과** (5 prim / 272 정점 / 524 삼각형 / 12,348 bytes):
+```
+GLB 헤더 magic=glTF version=2, 청크 2개(JSON+BIN), 4바이트 정렬 ✅
+buffer 길이 일치 ✅   모든 인덱스가 정점 범위 내 ✅
+바운딩 박스  x -0.2500…+0.3810   = wheelbase 0.3302 + 휠반경 0.0508 ✅
+             y -0.1318…+0.1318   = track/2 0.11275 + 휠폭/2 0.01905 ✅
+```
+
+### 어디서 보는가
+
+| 방법 | 비용 | 비고 |
+|---|---|---|
+| ⭐ [gltf-viewer.donmccurdy.com](https://gltf-viewer.donmccurdy.com/) | 0 | 드래그 앤 드롭. **전부 브라우저 안에서 처리**된다 (업로드 없음) |
+| ⭐ Windows **3D 보기** 앱 | 0 | `.glb` 를 더블클릭하면 열린다 |
+| [sandbox.babylonjs.com](https://sandbox.babylonjs.com/) | 0 | 인스펙터가 있어 계층·재질 확인에 좋다 |
+| VS Code `glTF Tools` 확장 | 0 | Remote-SSH 로 서버 파일을 바로 열 수 있다 |
+| **Blender** (로컬 PC) | 설치 | **USD 를 네이티브로 import 한다.** MX250 에서도 돈다 (RTX 불필요) |
+| `usdview` | 디스플레이 필요 | Isaac Sim 번들에 있으나 헤드리스에서는 못 쓴다 |
+
+> [!tip] 물리 거동까지 보려면 렌더가 정답이다
+> GLB 는 **기하만** 보여준다. 실제로 굴러가는 모습은 Isaac Lab 의
+> `--headless --enable_cameras --video` 로 mp4 를 녹화해서 `scp` 하는 것이 맞다.
+> 이건 어차피 학습 중에도 쓸 경로다.
+
+---
+
+## 11. 호스트 성능 경고 두 개 (관리자 조치 필요, 2026-09-15 Kit 로그)
+
+```
+[Warning] CPU performance profile is set to powersave.
+          This profile sets the CPU to the lowest frequency reducing performance.
+[Warning] PCIe link width current (8) and maximum (16) for device 0 don't match.
+[Warning] PCIe link width current (8) and maximum (16) for device 1 don't match.
+```
+
+| 항목 | 영향 | 조치 |
+|---|---|---|
+| CPU governor = `powersave` | Ryzen 9 9950X 가 최저 클럭. PhysX 의 CPU 측 작업과 Python 루프가 느려진다 | `sudo cpupower frequency-set -g performance` — `sudo` 가 apt 로만 제한되어 **관리자 요청 필요** |
+| PCIe x8 (최대 x16) | 호스트↔GPU 대역폭 절반 | BIOS/슬롯. 2장 모두 x8 이면 보드 레인 분배 구조일 수 있어 하드웨어 제약 |
+
+> [!note] GPU 는 2장으로 확정
+> `torch.cuda.device_count()=2`, Warp 가 `cuda:0`/`cuda:1` 을 `sm_120` 95 GiB 로 인식,
+> peer access 전방향 지원. Kit 도 두 장을 `Active Yes: 0 / Yes: 1` 로 잡는다.
+> → **seed 별 동시 실행**이 가능하다. `CUDA_VISIBLE_DEVICES` 로 한 장씩 배정한다.
+> ⚠️ Vulkan 디바이스 목록에 `llvmpipe` 도 있으므로 **항상 `--device cuda:0` 을 명시**할 것.

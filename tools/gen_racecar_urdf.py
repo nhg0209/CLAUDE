@@ -24,6 +24,7 @@ F1TENTH 1/10 물리용 URDF 생성기.
 """
 
 import argparse
+import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
@@ -57,6 +58,9 @@ PARAMS = dict(
     steer_limit   = 0.4189,  # rad   dynamics.yaml s_min/s_max
     steer_vel     = 3.2,     # rad/s dynamics.yaml sv_min/sv_max
     steer_effort  = 5.0,     # N m   서보 토크 (추정 — 실측 전까지 여유값)
+    front_effort  = 0.05,    # N m   ★ 앞바퀴는 무구동. 베어링 저항 수준만 준다
+                             #       (구동 토크를 주면 실수로 4WD 가 된다)
+    knuckle_size  = 0.04,    # m     너클을 정육면체로 근사한 한 변
     v_max_mps     = 10.0,    # m/s   휠 각속도 한계 산출용 (IQP 최대 8.69 위로 여유)
     a_max         = 9.51,    # m/s^2 dynamics.yaml — 휠 토크 한계 산출용
 
@@ -93,7 +97,8 @@ def solve_chassis(p):
     # 바퀴 자체 관성 (원기둥, 스핀축 = y)
     Iw_spin = 0.5 * mw * r**2
     Iw_tran = (1.0 / 12.0) * mw * (3 * r**2 + p["wheel_width"] ** 2)
-    Ih = (1.0 / 12.0) * mh * (0.04**2 + 0.04**2)  # 너클 ≈ 4cm 정육면체
+    ks = p["knuckle_size"]
+    Ih = (1.0 / 12.0) * mh * (ks**2 + ks**2)  # 너클 ≈ 정육면체
 
     # 부품들이 CoG 기준 Izz 에 기여하는 양 (평행축 정리)
     Izz_parts = 0.0
@@ -163,7 +168,11 @@ def build(p, s):
         g = ET.SubElement(e, "geometry")
         ET.SubElement(g, "box", size=f"{p['body_len']} {p['body_wid']} {p['body_hgt']}")
 
-    def wheel(name, x, y, parent, jname):
+    def z_of(parent, r):
+        """너클의 자식이면 너클 원점(이미 z=r), 섀시의 자식이면 휠 반경만큼 올린다."""
+        return 0.0 if parent.endswith("hinge") else r
+
+    def wheel(name, x, y, parent, jname, driven):
         lk = ET.SubElement(root, "link", name=name)
         # 스핀축 = y  →  Iyy 가 스핀 관성
         inertial(lk, p["m_wheel"], "0 0 0", (s["Iw_tran"], s["Iw_spin"], s["Iw_tran"]))
@@ -178,17 +187,28 @@ def build(p, s):
         ET.SubElement(j, "child", link=name)
         ET.SubElement(j, "origin", xyz=f"{x} {y} {z_of(parent, r)}", rpy="0 0 0")
         ET.SubElement(j, "axis", xyz="0 1 0")
-        tq = p["m_total"] * p["a_max"] * r / 2.0          # 뒤 두 바퀴가 나눠 받는다
-        ET.SubElement(j, "limit", effort=f"{tq*1.5:.3f}", velocity=f"{p['v_max_mps']/r:.2f}")
-
-    def z_of(parent, r):
-        return 0.0 if parent.endswith("hinge") else r
+        if driven:
+            tq = p["m_total"] * p["a_max"] * r / 2.0 * 1.5   # 뒤 두 바퀴가 나눠 받는다 + 여유
+        else:
+            tq = p["front_effort"]                            # 앞바퀴는 무구동
+        # ⚠️ URDF 의 velocity 는 rad/s 다. USD 로 갈 때 변환기가 단위를 어떻게 다루는지
+        #    확인이 필요하다 (USD 의 angular drive 관련 값은 degrees 계열). 변환 후
+        #    inspect_usd.py 의 "관절 속도 한계" 절로 실측하라.
+        ET.SubElement(j, "limit", effort=f"{tq:.3f}", velocity=f"{p['v_max_mps']/r:.2f}")
 
     # ── 조향 너클 (앞) ───────────────────────────────────────────
     for side, sgn in (("left", +1), ("right", -1)):
         hn = f"front_{side}_hinge"
         lk = ET.SubElement(root, "link", name=hn)
         inertial(lk, p["m_hinge"], "0 0 0", (s["Ih"], s["Ih"], s["Ih"]))
+        # visual 만 준다. collision 은 의도적으로 없다 — 너클은 접촉을 만들면 안 된다.
+        # 기하가 전혀 없으면 URDF importer 가 </visuals/...> 참조를 만들었다가
+        # 해결하지 못해 "Unresolved reference prim path" 경고를 수십 줄 뱉는다.
+        ks = p["knuckle_size"]
+        vis = ET.SubElement(lk, "visual")
+        ET.SubElement(vis, "origin", xyz="0 0 0", rpy="0 0 0")
+        vg = ET.SubElement(vis, "geometry")
+        ET.SubElement(vg, "box", size=f"{ks*0.75:.4f} {ks*0.5:.4f} {ks:.4f}")
         j = ET.SubElement(root, "joint", name=f"{hn}_joint", type="revolute")
         ET.SubElement(j, "parent", link="base_link")
         ET.SubElement(j, "child", link=hn)
@@ -197,11 +217,11 @@ def build(p, s):
         ET.SubElement(j, "limit",
                       lower=f"{-p['steer_limit']}", upper=f"{p['steer_limit']}",
                       effort=f"{p['steer_effort']}", velocity=f"{p['steer_vel']}")
-        wheel(f"front_{side}_wheel", 0.0, 0.0, hn, f"front_{side}_wheel_joint")
+        wheel(f"front_{side}_wheel", 0.0, 0.0, hn, f"front_{side}_wheel_joint", driven=False)
 
     # ── 뒤 구동륜 ────────────────────────────────────────────────
     for side, sgn in (("left", +1), ("right", -1)):
-        wheel(f"rear_{side}_wheel", 0.0, sgn * hy, "base_link", f"rear_{side}_wheel_joint")
+        wheel(f"rear_{side}_wheel", 0.0, sgn * hy, "base_link", f"rear_{side}_wheel_joint", driven=True)
 
     return root
 
@@ -237,7 +257,11 @@ def main():
     print(f"  조향 한계    ±{p['steer_limit']} rad (±{p['steer_limit']*57.2958:.1f}°)")
     print(f"  휠 각속도    ±{p['v_max_mps']/p['wheel_radius']:.1f} rad/s "
           f"(= ±{p['v_max_mps']} m/s)")
+    tq = p["m_total"] * p["a_max"] * p["wheel_radius"] / 2.0 * 1.5
+    print(f"  휠 effort    뒤(구동) {tq:.3f} N·m / 앞(무구동) {p['front_effort']} N·m")
 
+    d = os.path.dirname(os.path.abspath(a.out))
+    os.makedirs(d, exist_ok=True)
     xml = minidom.parseString(ET.tostring(build(p, s))).toprettyxml(indent="  ")
     xml = "\n".join(l for l in xml.split("\n") if l.strip())
     with open(a.out, "w") as f:
