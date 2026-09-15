@@ -47,9 +47,10 @@ inst "pyglet<2"             "pyglet<2"
 inst einops                 einops
 inst "pillow==11.3.0"       "pillow==11.3.0"
 inst "starlette==0.49.1"    "starlette==0.49.1"
-inst "flatdict==4.0.1"      "flatdict==4.0.1"    # ← setuptools<82 제약이 필요한 놈
+inst "flatdict==4.1.0"      "flatdict==4.1.0"    # 4.0.1 은 sdist 뿐이라 빌드 실패. 4.1.0 은 wheel 이 있다
 inst flaky                  flaky
-inst packaging              "packaging>=24.0"
+inst "packaging==23.0"      "packaging==23.0"    # isaacsim-core 가 ==23.0, isaaclab_rl 이 <24 를 요구한다.
+                                                  # wheel 의 >=24.0 경고는 빌드 시점 전용이라 무해하다
 inst pytest                 pytest pytest-mock junitparser
 # transformers 는 크고 우리는 vision 기능을 쓰지 않는다. 실패해도 무해
 inst "transformers(선택)"    "transformers==4.57.6"
@@ -65,29 +66,22 @@ inst "torch 3종" -U --index-url "$IDX" torch==2.7.0 torchvision==0.22.0 torchau
 echo; echo "══ 5. 결과 ══"
 printf "  성공 %d개" "${#ok[@]}"; [ ${#fail[@]} -gt 0 ] && printf " / 실패: %s" "${fail[*]}"; echo
 
-echo; echo "══ 6. import 검증 ══"
-python - <<'PY'
-import importlib, sys
-import torch
-print(f"  torch {torch.__version__}  cuda={torch.cuda.is_available()}  devices={torch.cuda.device_count()}")
-bad=[]
-for m in ("isaacsim","isaaclab","isaaclab_assets","isaaclab_tasks","isaaclab_rl","skrl","warp"):
-    try:
-        importlib.import_module(m); print(f"  ✅ {m}")
-    except Exception as e:
-        bad.append(m); print(f"  ❌ {m}  -> {type(e).__name__}: {e}")
-sys.exit(1 if bad else 0)
-PY
-IMPORT_OK=$?
-
-echo; echo "  ── pip check ──"
+echo; echo "══ 6. pip check ══"
 pip check 2>&1 | sed 's/^/  /' || true
+cat <<'NOTE'
+  ── 남아도 되는 경고 ──
+   daqp / dex-retargeting / pin-pink : humanoid retargeting 전용. 우리는 안 쓴다
+   isaacsim-kernel 의 click/psutil/typing_extensions == 핀 : 그 없이도 정상 동작 확인됨.
+       내리면 onnx(typing_extensions>=4.15.0)가 실제로 깨진다
+   fastapi vs starlette : livestream 전용. 우리는 headless + 영상 녹화를 쓴다
+NOTE
 
-echo; echo "══ 7. 스모크 테스트 ══"
-if [ "$IMPORT_OK" -eq 0 ]; then
-  cd /workspace/IsaacLab && \
-  ./isaaclab.sh -p scripts/tutorials/00_sim/create_empty.py --headless --device cuda:0 \
-    && echo "  ✅ Isaac Lab 정상 기동" || echo "  ❌ 기동 실패 — 위 로그 확인"
-else
-  echo "  건너뜀 (6단계 import 실패)"
-fi
+echo; echo "══ 7. 검증은 AppLauncher 를 띄운 뒤에 해야 한다 ══"
+cat <<'NOTE'
+  pxr(OpenUSD)은 AppLauncher 가 sys.path 에 올려준다. 맨몸 import 는 실패하는 것이 정상.
+  ⚠️ pip install usd-core 로 채우려 하지 말 것 — Isaac Sim 번들 USD 와 충돌한다.
+
+  다음을 실행하라:
+    cd /workspace/IsaacLab
+    ./isaaclab.sh -p /workspace/tools/verify_isaaclab.py
+NOTE
