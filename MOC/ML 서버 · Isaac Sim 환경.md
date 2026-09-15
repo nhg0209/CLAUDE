@@ -132,7 +132,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libvulkan1 vulkan-tools mesa-vulkan-drivers \
       libgl1 libglu1-mesa libegl1 libgles2 libglib2.0-0 \
       libsm6 libxext6 libxrender1 libxrandr2 libxinerama1 \
-      libxcursor1 libxi6 libxkbcommon-x11-0 libxcb-cursor0 \
+      libxcursor1 libxi6 libxkbcommon-x11-0 libxcb-cursor0 libxt6 \
       libasound2 libnss3 libatk-bridge2.0-0 libgtk-3-0 \
  && rm -rf /var/lib/apt/lists/*
 
@@ -223,7 +223,7 @@ Ubuntu 24.04  → 기본 3.12. 게다가 패키지가 t64 계열로 개명 (liba
 | 빌드 | `build-essential cmake ninja-build` | 공식 문서 명시 (robomimic 요구) |
 | ⭐ Vulkan | `libvulkan1 vulkan-tools mesa-vulkan-drivers` | loader + 진단 + fallback ICD |
 | GL/EGL | `libgl1 libglu1-mesa libegl1 libgles2 libglib2.0-0` | `libegl1` 은 **headless 오프스크린 렌더링** = `--video` 녹화의 핵심 |
-| ⚠️ X11 | `libsm6 libxext6 libxrender1 libxrandr2 libxinerama1 libxcursor1 libxi6 libxkbcommon-x11-0 libxcb-cursor0` | **창을 안 띄워도 필요** |
+| ⚠️ X11 | `libsm6 libxext6 libxrender1 libxrandr2 libxinerama1 libxcursor1 libxi6 libxkbcommon-x11-0 libxcb-cursor0` **`libxt6`** | **창을 안 띄워도 필요.** `libxt6` 누락 시 MaterialX 렌더 플러그인 3개가 로드 실패 (2026-09-15 실측, 무해하지만 로그 오염) |
 | Chromium | `libasound2 libnss3 libatk-bridge2.0-0 libgtk-3-0` | Kit 일부 UI 가 내장 CEF |
 
 > [!warning] ⚠️ X11 라이브러리가 headless 에서도 필요한 이유 — Docker 실패 원인 1위
