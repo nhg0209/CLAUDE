@@ -281,3 +281,59 @@ P = [3, 1, 7, 5]      Q = [2, 8, 4, 6]
 
 **한 줄**: 어려운 고차원 거리 계산을 *"여러 방향의 1차원 그림자에서 정렬하고 빼기"* 로 바꾼 것.
 [16]의 제목이 *"An **embarrassingly simple** generative model"* 인 이유.
+
+### Q. SWAE를 쓰는 이유는 결국 고차원 elevation·semantic 정보를 state 배열에 넣기 위해 압축하는 것이고, 그 벡터에 지형 정보가 녹아 있어야 하는 것인가?
+
+**A.** 그렇다. §IV-A가 두 가지를 다 적는다:
+
+> *"we employ the SWAE generative model to embed elevation and semantic patches into a 64-dimensional latent space,
+> **preserving both geometric and semantic information** for downstream kinodynamic modeling."*
+
+**압축**이 목적, **정보 보존**이 요구조건. 세 가지를 더 정확히 잡아둔다.
+
+**① 압축이 두 단계다.** SWAE만으로 8차원까지 가지 않는다.
+
+```
+128×128 패치
+    ↓  SWAE 인코더
+  64차원
+    ↓  3-layer MLP          ← 별도 단계
+  e_elev ∈ R^8 , e_sem ∈ R^8
+```
+
+§IV-A: *"The terrain embeddings e_elev ∈ R^8 and e_sem ∈ R^8 are derived from the SWAE encoder
+and **further compressed by a 3-layer MLP**."*
+
+**② state 배열에 넣는 이유는 ODE의 형태다.** §III-A:
+
+$$\dot{x}_t = f_\theta(x_t, u_t, e_t)$$
+
+$e_t$ 가 $f_\theta$ 의 **인자**다. 지형 정보가 없으면 같은 상태·같은 조향에 항상 같은 결과가 나온다.
+§III-B가 그러면 안 되는 이유를 든다:
+
+> *"a large boulder may cause rollover, while deformable sand may get the vehicle stuck"*
+
+구현(§IV-A)에서는 상태벡터에 이어붙인다:
+
+```
+[0, 0, 0, roll, pitch, 0, e_elev, e_sem] ∈ R^22
+ └────── 6 ──────┘  └─ 8 ─┘ └─ 8 ─┘
+```
+
+**③ ★ 출력에서는 지형 embedding을 예측하지 않는다.** §IV-A 마지막 문장:
+
+> *"**We omit $e_{\text{elev}}$ and $e_{\text{sem}}$ in the prediction since they can be acquired from perception.**"*
+
+Table I의 `Output dimension: 6` 이 그 결과다.
+
+```
+입력 R^22  =  pose 6 + e_elev 8 + e_sem 8
+               ↓  f_θ
+출력 R^6   =  [Δx, Δy, Δz, roll_{t+1}, pitch_{t+1}, Δψ]      ← 지형 없음
+```
+
+다음 스텝의 지형 embedding은 모델이 만드는 것이 아니라 **perception이 매번 새로 넣는다.**
+
+> [!question] SWAE 학습에 대한 서술이 논문에 없다 ❓
+> 언제·어떤 데이터로 학습했는지, kinodynamic 모델과 **따로인지 합동인지** 전부 서술이 없다.
+> 앞 질문의 "SWAE 대체 실험이 없다"와 합치면, SWAE는 이 논문에서 근거가 가장 얇은 구성요소다.
