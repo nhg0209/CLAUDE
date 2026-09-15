@@ -39,6 +39,8 @@ arxiv: 2603.06887
 | $g_i$ | $G_i$ 로 적분되기 전의 **상태 변화율** | §III-C |
 | $e_t = [e_{\text{elev}}, e_{\text{sem}}]$ | 차량 아래 지형의 elevation + semantic embedding | §III-B |
 | $k$ | 기저함수 개수 = **24** | Table I |
+| **SWAE** | Sliced-Wasserstein Autoencoder [16]. elevation·semantic 맵을 latent로 압축 | §III-B, §IV-A. **원리 설명은 없음** |
+| $e_{\text{elev}}, e_{\text{sem}}$ | 각각 $\mathbb{R}^8$. SWAE 인코더 출력을 3-layer MLP로 추가 압축 | §IV-A |
 | ⚠️ $\alpha$ (Alg. 1) | **학습률로도 쓰인다** — line 1, line 25 | 계수 $\alpha$ 와 충돌 |
 
 ---
@@ -163,3 +165,64 @@ $$x_{t+1} - x_t = \sum_{i=1}^{k}\alpha_i\,G_i(x_t, u_t, e_t;\theta_i)$$
 > | line 25 $\theta \leftarrow \theta - \alpha\nabla_\theta L$ | 학습률 |
 >
 > 논문은 이를 언급하지 않는다.
+
+### Q. SWAE가 무엇인가?
+
+**A.** 이 논문에서의 역할은 **지형 맵을 작은 벡터로 압축**하는 것이다. §III-B:
+
+> *"To facilitate efficient modeling and adaptation, we use SWAE [16] to
+> **project raw elevation and semantic maps into a compact latent space**."*
+
+**파이프라인** (§IV-A):
+
+```
+차량 아래 128×128 픽셀 패치, 10 Hz, 차체 헤딩에 정렬
+  ├ elevation : 2.5D 맵 (차량 현재 고도를 기준으로 중심화)
+  └ semantic  : BEV RGB 이미지
+        ↓  SWAE 인코더
+     64차원 latent
+        ↓  3-layer MLP로 추가 압축
+  e_elev ∈ R^8 ,  e_sem ∈ R^8
+        ↓
+  상태벡터 [0, 0, 0, roll, pitch, 0, e_elev, e_sem] ∈ R^22
+```
+
+22 = 6(pose) + 8 + 8. 위치 $(x,y,z)$ 와 yaw를 0으로 두는 이유는 §IV-A가 밝힌다:
+
+> *"Since the mobile robot's kinodynamics are **invariant under translation and rotation**,
+> we adopt a **gravity-aligned body frame** to enhance data efficiency and improve model accuracy."*
+
+roll·pitch는 world frame 값을 유지한다.
+
+**왜 압축이 필요한가** — §I:
+
+> *"unifying elevation and semantics with real-time adaptation within a single framework remains an open challenge,
+> due to the **large space and variability of the elevation and semantic input** and **limited onboard computation**."*
+
+> [!note] SWAE의 원리는 논문 밖 내용
+> 논문은 SWAE를 **인용만 하고 원리를 설명하지 않는다.** 참고문헌 [16]의 제목이
+> 성격을 보여준다 — Kolouri, Pope, Martin, Rohde,
+> *"Sliced-Wasserstein autoencoder: An embarrassingly simple generative model"*, arXiv:1804.01947, 2018.
+>
+> (일반 설명: 오토인코더의 latent 분포를 미리 정한 분포에 맞추도록 정규화하는 변형.
+> 고차원 분포 거리를 직접 재는 대신 무작위 방향으로 1차원 사영(slice)해 Wasserstein 거리를 재고 평균낸다.)
+
+**논문에 없는 것 ❓**
+- SWAE의 원리·학습 방법
+- **SWAE를 다른 인코더로 바꾼 비교.** Table III의 ablation은 embedding을 *빼는* 실험이지
+  SWAE 자체를 대체한 실험이 아니다 → "SWAE여야 했는가"의 근거는 없다
+- *"64-dimensional latent"* 가 elevation·semantic **각각 64인지 합쳐서 64인지** 미명시.
+  최종이 8+8인 것만 확실하다
+
+**참고 — Table III (ablation, MSE)**
+
+| Variant | Low | Medium | High |
+|---|---|---|---|
+| VA (Proposed) | **0.177** | **0.760** | **2.161** |
+| VA w/o semantic | 0.201 | 0.761 | 2.292 |
+| VA w/o elevation | 0.220 | 0.840 | 2.559 |
+| VA w/o both | **0.177** | 0.761 | 3.038 |
+
+§V-B의 해석: high elevation에서 elevation 제거 시 **+18.4%**, semantic 제거 시 **+6.1%**,
+둘 다 제거 시 **+40.5%**. 단 low elevation에서는 *"the VA w/o both **also achieves an MSE of 0.177**,
+indicating that for low elevation level, basic kinodynamic modeling using only the 6-DoF pose is sufficient"*.
