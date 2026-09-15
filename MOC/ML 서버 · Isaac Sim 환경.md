@@ -530,3 +530,62 @@ buffer 길이 일치 ✅   모든 인덱스가 정점 범위 내 ✅
 > peer access 전방향 지원. Kit 도 두 장을 `Active Yes: 0 / Yes: 1` 로 잡는다.
 > → **seed 별 동시 실행**이 가능하다. `CUDA_VISIBLE_DEVICES` 로 한 장씩 배정한다.
 > ⚠️ Vulkan 디바이스 목록에 `llvmpipe` 도 있으므로 **항상 `--device cuda:0` 을 명시**할 것.
+
+---
+
+## 12. GPU 메모리 예산 (2026-09-15)
+
+> [!question] "15~20 GB 면 충분한가?" → **거의 확실히 충분하다.** 단, 두 숫자가 미측정.
+
+### 예산 분해
+
+| 항목 | 크기 | 근거 |
+|---|---|---|
+| Isaac Sim / Kit 기본 | **1.4 ~ 2.8 GiB** | ⭐ 실측 — 브로커 로그가 `2832 MiB` / `1.4 GiB` 를 찍었다 (차량 1대, headless) |
+| PhysX GPU 버퍼 (env 수 비례) | ❓ 미측정 | 접촉·강체 버퍼는 **사전 할당**된다 → `tools/measure_gpu_budget.py` 로 측정 |
+| **SAC replay buffer** | ❓ **관측 설계에 달림** | ⬇️ |
+| 신경망 + optimizer | < 50 MB | MLP 2×256 |
+| RTX 렌더러 (`--enable_cameras`) | +2 ~ 4 GiB | 영상 녹화 시에만 |
+
+### ★ replay buffer — 관측 차원이 전부를 좌우한다 (계산 완료)
+
+`transition = obs + next_obs + priv_obs + next_priv_obs + action + reward + done`
+
+| 설계 | actor dim | transition | buffer 1e6 | 판정 |
+|---|---|---|---|---|
+| **경로 조건부 (Phase 1, 우리 설계)** | 139 | 2.26 KB | **2.16 GB** | ✅ |
+| + LiDAR 108beam × 4 stack (Phase 2) | 571 | 9.02 KB | **8.60 GB** | ⚠️ 빠듯 |
+| LiDAR raw 1080beam × 4 (하면 안 되는 예) | 4459 | 69.72 KB | **66.49 GB** | ❌ |
+
+> [!warning] LiDAR 다운샘플은 계산량 문제가 아니라 **메모리 문제**이기도 하다
+> TM07 이 LiDAR 를 줄이는 이유가 여기에도 있다. Phase 2 에서 LiDAR 를 넣을 때
+> 이 계산을 다시 해야 한다.
+> 완화책: buffer 를 `5e5` 로 줄이거나, skrl 옵션으로 **CPU 에 저장**(느리지만 동작).
+
+### ⭐ SAC 는 env 를 많이 쓰지 않는다 — 예산 질문의 답을 바꾼다
+
+```
+PPO (on-policy)  : 샘플을 한 번 쓰고 버린다   -> 4096 env 가 의미 있다
+SAC (off-policy) : replay buffer 에서 재사용  -> env 를 늘려도 gradient step 이
+                                                 같이 늘지 않으면 버퍼만 빨리 찰 뿐
+```
+Isaac Lab 의 "4096 env" 서사는 대부분 **PPO 이야기**다.
+[[SAC (Haarnoja 2018)]] Appendix D 의 기본값은 `env step 1회당 gradient 1회` 다.
+→ **우리 현실 규모는 32~256 env.** PhysX 버퍼도 그만큼 작아진다.
+
+### 결론
+
+```
+Isaac Sim        3 GB
+PhysX (256 env)  2~4 GB   (추정 — 측정 필요)
+replay buffer    2.2 GB   (경로 조건부 관측 기준)
+영상 녹화        +3 GB    (간헐적)
+────────────────────────
+합계             약 10~13 GB      →  15~20 GB 로 여유 있음
+```
+
+**측정**: `./isaaclab.sh -p /workspace/tools/measure_gpu_budget.py --num-envs 64`
+(64 / 256 / 1024 로 2~3회 돌려 선형성 확인. `nvidia-smi` 로 **프로세스별** 메모리를
+읽으므로 공유 GPU 에서도 정확하다.)
+
+⚠️ 실행 전 `gpu take 8g --gpu 0` 로 할당 확보. Isaac Sim 은 기동만으로 1.4 GiB 를 쓴다.
