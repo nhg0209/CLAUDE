@@ -61,24 +61,18 @@ else
     printf "    %-18s " "$d"
     pip install -q --no-deps -e "$IL_DIR/source/$d" && echo "ok" || echo "FAILED"
   done
-  echo "  런타임 의존성 설치 (sb3 제외)"
-  pip install -q "numpy<2" "onnx>=1.18.0" "prettytable==3.3.0" toml \
-      "hidapi==0.14.0.post2" "gymnasium==1.2.1" trimesh "pyglet<2" einops \
-      "warp-lang" "pillow==11.3.0" "starlette==0.49.1" \
-      pytest pytest-mock junitparser "flatdict==4.0.1" flaky packaging \
-    && echo "    ok" || echo "    ⚠️ 일부 실패"
+  echo "  런타임 의존성은 fix_isaaclab_deps.sh 가 하나씩 설치한다"
+  echo "  (pip 은 목록을 원자적으로 처리해서 하나가 실패하면 전부 안 깔린다)"
   pip install -q "skrl[torch]" && echo "    skrl ok" || echo "    ⚠️ skrl 실패"
 fi
 
-hr "5. torch 3종 재고정 (isaacsim-core 5.1 의 요구)"
+hr "5. 런타임 의존성 + torch 재고정 -> fix_isaaclab_deps.sh 로 위임"
+bash "$(dirname "$0")/fix_isaaclab_deps.sh" 2>&1 | sed 's/^/  /'
+hr "5b. torch 3종 확인"
 pip install -q -U --index-url "$IDX" "torch==$TORCH" "torchvision==$TV" "torchaudio==$TA" \
   && echo "  ok"
 
-hr "6. isaacsim-kernel 의 정확 핀 복원"
-# isaacsim-kernel 5.1 은 이 세 개를 == 로 고정한다. isaaclab 설치가 올려버린다.
-pip install -q "click==8.1.7" "psutil==5.9.8" "typing_extensions==4.12.2" && echo "  ok"
-
-hr "7. 검증"
+hr "6. 검증"
 python - <<'PY'
 import importlib, sys
 print(f"  python      {sys.version.split()[0]}")
@@ -104,10 +98,10 @@ echo; echo "  ── pip check ──"
 pip check 2>&1 | sed 's/^/  /' || true
 echo "  (sb3/rl-games 관련 줄이 사라져 있어야 정상. 나머지는 대개 무해)"
 
-hr "8. Isaac Lab 스모크 테스트"
+hr "7. Isaac Lab 스모크 테스트"
 if [ "$IMPORT_OK" -eq 0 ]; then
   ./isaaclab.sh -p scripts/tutorials/00_sim/create_empty.py --headless --device cuda:0 \
     && echo "  ✅ Isaac Lab 정상 기동" || echo "  ❌ 기동 실패 — 위 로그 확인"
 else
-  echo "  건너뜀 (7단계 import 가 실패했다)"
+  echo "  건너뜀 (6단계 import 가 실패했다)"
 fi
