@@ -28,6 +28,7 @@ parser.add_argument("usd_path", nargs="?", default="/workspace/assets/racecar.us
                     help="검사할 USD 경로")
 parser.add_argument("--expect-mass", type=float, default=3.47, help="기대 총 질량 [kg]")
 parser.add_argument("--expect-steer-deg", type=float, default=24.0, help="기대 조향 한계 [deg]")
+parser.add_argument("--tree", action="store_true", help="모든 prim 의 타입과 applied schema 를 덤프")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 args_cli.headless = True
@@ -69,9 +70,25 @@ def main() -> int:
     except Exception:                                                  # noqa: BLE001
         pass
     print(f"  defaultPrim       {stage.GetDefaultPrim().GetPath() if stage.GetDefaultPrim() else '-'}")
+    print("  합성된 레이어 (변환기가 다중 파일 USD 를 만든다):")
+    for lyr in stage.GetUsedLayers():
+        ident = lyr.identifier
+        print(f"    · {ident.split('/')[-1]:<36} {ident}")
 
     roots, bodies, colliders, joints, drives = [], [], [], [], []
-    for p in stage.Traverse():
+    # ★ 기본 predicate 는 instance proxy 안으로 내려가지 않는다. URDF 변환기는
+    #   기하 prim 을 instanceable 로 만들 수 있어서, 그러면 collider 가 안 보인다.
+    pred = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+    all_prims = list(stage.Traverse(pred))
+    if args_cli.tree:
+        print(f"\n{BAR}\n 1b. prim 트리 ({len(all_prims)}개)\n{BAR}")
+        for p in all_prims:
+            api = [s for s in p.GetAppliedSchemas()]
+            inst = " [instance proxy]" if p.IsInstanceProxy() else ""
+            print(f"  {str(p.GetPath()):<52}{str(p.GetTypeName()):>16}{inst}")
+            if api:
+                print(f"        + {', '.join(api)}")
+    for p in all_prims:
         applied = list(p.GetAppliedSchemas())
         if p.HasAPI(UsdPhysics.ArticulationRootAPI):
             roots.append(p)
@@ -135,8 +152,11 @@ def main() -> int:
                 warn.append(f"{c.GetName()} collider 가 {t}/{appr} — 굴릴 때 덜컹거린다")
         print(f"  {c.GetName():<30}{t:>14}{appr:>20}{tag}")
     if not colliders:
-        warn.append("collider 가 하나도 없다")
+        warn.append("collider 가 하나도 없다 — 접촉이 발생하지 않는다")
         print("  ⚠️ 없음 — 접촉이 발생하지 않는다")
+        print("     --tree 로 prim 트리를 덤프해서 기하가 어디 있는지 확인하라.")
+        print("     collisions/ 스코프가 instance proxy 안에 있거나, 변환기가")
+        print("     CollisionAPI 를 붙이지 않았을 수 있다.")
 
     print(f"\n{BAR}\n 5. Joint  (★ USD 의 revolute 한계는 '도' 단위)\n{BAR}")
     for j in joints:
@@ -167,13 +187,25 @@ def main() -> int:
             print(f"      localRot0={lr0}   ← URDF 의 임의 축이 여기 흡수된다")
     print(f"  → {len(joints)}개")
 
-    print(f"\n{BAR}\n 6. Drive  (--joint-target-type none 이면 비어야 한다)\n{BAR}")
-    if drives:
-        for p, which in drives:
-            print(f"  ⚠️ {p.GetName()}  {which}")
-        warn.append("drive 가 USD 에 굳었다 — ActuatorCfg 로 제어하려면 재변환")
-    else:
-        print("  ✅ 없음. 액추에이터는 Python ActuatorCfg 에서 정의한다")
+    print(f"\n{BAR}\n 6. Drive  (★ target_type='none' 은 API 를 없애지 않고 게인을 0 으로 만든다)\n{BAR}")
+    print("  Isaac Lab 의 ImplicitActuator 는 DriveAPI 가 '존재해야' 런타임에 게인을 써넣는다.")
+    print("  따라서 API 가 있는 것은 정상이고, 확인할 것은 stiffness/damping 이 0 인지다.\n")
+    if not drives:
+        warn.append("DriveAPI 가 없다 — ImplicitActuator 가 게인을 써넣을 대상이 없다")
+        print("  ⚠️ 없음")
+    for p, which in drives:
+        for s in which:
+            inst = s.split(":", 1)[1] if ":" in s else "angular"
+            api = UsdPhysics.DriveAPI(p, inst)
+            st = authored(api.GetStiffnessAttr()) or 0.0
+            dm = authored(api.GetDampingAttr()) or 0.0
+            ty = authored(api.GetTypeAttr()) or "(기본)"
+            mf = authored(api.GetMaxForceAttr())
+            zero = abs(st) < 1e-9 and abs(dm) < 1e-9
+            print(f"  {p.GetName():<28} {inst:<8} stiffness={st:<10.4g} damping={dm:<10.4g} "
+                  f"type={ty:<13} maxForce={mf}  {'✅ 0' if zero else '⚠️ 게인이 굳었다'}")
+            if not zero:
+                warn.append(f"{p.GetName()}: drive 게인이 0 이 아니다 (stiffness={st}, damping={dm})")
 
     print(f"\n{BAR}")
     if warn:
