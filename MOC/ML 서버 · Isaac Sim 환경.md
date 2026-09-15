@@ -143,7 +143,7 @@ RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 # 공식 문서 순서 그대로: isaacsim 먼저, torch 나중
 RUN pip install --no-cache-dir "isaacsim[all,extscache]==5.1.0" \
       --extra-index-url https://pypi.nvidia.com
-RUN pip install --no-cache-dir -U torch==2.7.0 torchvision==0.22.0 \
+RUN pip install --no-cache-dir -U torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 \
       --index-url https://download.pytorch.org/whl/cu128
 
 WORKDIR /workspace
