@@ -75,7 +75,18 @@ PARAMS = dict(
     # 우리 연구의 핵심 슬립 발생원을 놓친다.
     driven_wheels = 4,       # 4륜 구동
     effort_margin = 1.5,     # a_max 대비 토크 여유
-    v_max_mps     = 10.0,    # m/s   휠 각속도 한계 산출용 (IQP 최대 8.69 위로 여유)
+    # ── ★ 속도 한계는 세 계층으로 분리한다 ────────────────────────
+    # 1) wheel_vel_limit_radps : PhysX joint 의 물리적/수치적 안전망. 행동 제약이 아니다.
+    #    휠스핀 중에는 휠 원주속도가 차체 속도보다 훨씬 빠르다:
+    #      슬립비 0.766 (mu=0.12 실측) -> v_wheel = v/(1-0.766) = 4.27 v
+    #      차체 10 m/s 에서 심한 휠스핀 -> 약 43 m/s = 840 rad/s
+    #    joint 한계를 차체 속도로 유도하면 휠스핀이 인위적으로 잘려
+    #    우리가 연구하려는 현상 자체가 제한된다.
+    # 2) 실제 속도 상한(VESC): action mapping 에서 U(4.5, 10.5) m/s 로 랜덤화.
+    #    하드웨어는 46500 ERPM / 4614 gain = 10.08 m/s (현재 스택 설정은 그 절반)
+    # 3) 마찰: sqrt(mu*g*R). 코너에서 실제로 막는 것
+    wheel_vel_limit_radps = 600.0,   # rad/s  ≈ 30.5 m/s 상당. 안전망
+    v_max_mps     = 10.08,   # m/s   ★ 기록용(하드웨어 상한). joint 한계 산출에 쓰지 않는다
     a_max         = 9.51,    # m/s^2 dynamics.yaml — 휠 토크 한계 산출용
 
     # ── 섀시 관성 형상비 (Ixx, Iyy 를 정하기 위한 등가 박스의 폭/높이) ─
@@ -208,7 +219,8 @@ def build(p, s):
         # ⚠️ URDF 의 velocity 는 rad/s 다. USD 로 갈 때 변환기가 단위를 어떻게 다루는지
         #    확인이 필요하다 (USD 의 angular drive 관련 값은 degrees 계열). 변환 후
         #    inspect_usd.py 의 "관절 속도 한계" 절로 실측하라.
-        ET.SubElement(j, "limit", effort=f"{tq:.3f}", velocity=f"{p['v_max_mps']/r:.2f}")
+        ET.SubElement(j, "limit", effort=f"{tq:.3f}",
+                      velocity=f"{p['wheel_vel_limit_radps']:.2f}")
 
     # ── 조향 너클 (앞) ───────────────────────────────────────────
     for side, sgn in (("left", +1), ("right", -1)):
@@ -269,8 +281,11 @@ def main():
     print()
     print(f"  wheelbase   {s['wb']:.4f} m      track {p['track']:.4f} m")
     print(f"  조향 한계    ±{p['steer_limit']} rad (±{p['steer_limit']*57.2958:.1f}°)")
-    print(f"  휠 각속도    ±{p['v_max_mps']/p['wheel_radius']:.1f} rad/s "
-          f"(= ±{p['v_max_mps']} m/s)")
+    wl = p["wheel_vel_limit_radps"]
+    print(f"  휠 joint 한계 ±{wl:.1f} rad/s (= ±{wl*p['wheel_radius']:.1f} m/s 상당)  "
+          f"← 수치 안전망. 행동 제약 아님")
+    print(f"  실제 속도상한 U(4.5, 10.5) m/s 를 action mapping 에서 랜덤화 "
+          f"(하드웨어 {p['v_max_mps']} m/s)")
     tq = (p["m_total"] * p["a_max"] * p["wheel_radius"] / p["driven_wheels"]) * p["effort_margin"]
     F = p["m_total"] * p["a_max"]
     print(f"  구동계       {p['driven_wheels']}WD (shaft-driven, open diff 근사)")
