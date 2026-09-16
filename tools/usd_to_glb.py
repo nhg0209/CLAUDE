@@ -34,7 +34,7 @@ import sys
 # ── Isaac Sim 안에서 돌 때는 AppLauncher 가 필요하다 ─────────────────────
 _NEED_APP = False
 try:
-    from pxr import Gf, Usd, UsdGeom  # noqa: F401
+    from pxr import Gf, Usd, UsdGeom, UsdPhysics  # noqa: F401
 except ModuleNotFoundError:
     _NEED_APP = True
 
@@ -51,7 +51,7 @@ if _NEED_APP:
     _app_launcher = AppLauncher(_known)
     _sim_app = _app_launcher.app
     sys.argv = [sys.argv[0]] + _rest
-    from pxr import Gf, Usd, UsdGeom  # noqa: F811
+    from pxr import Gf, Usd, UsdGeom, UsdPhysics  # noqa: F811
 else:
     _sim_app = None
 
@@ -283,8 +283,13 @@ def main():
         if not V or not F:
             skipped.append(f"{prim.GetPath()} (빈 기하)")
             continue
+        # ★ 경로 문자열이 아니라 스키마로 판정한다.
+        #   트랙 벽은 /track/walls/left 처럼 경로에 "collision" 이 없지만
+        #   CollisionAPI 가 붙은 진짜 충돌체다.
         path = str(prim.GetPath()).lower()
-        is_col = "collision" in path or "collider" in path
+        is_col = prim.HasAPI(UsdPhysics.CollisionAPI) or \
+            (prim.GetParent().HasAPI(UsdPhysics.CollisionAPI) if prim.GetParent() else False) or \
+            "collision" in path or "collider" in path
         kind = "collision" if is_col else "visual"
         if a.only != "both" and kind != a.only:
             continue
