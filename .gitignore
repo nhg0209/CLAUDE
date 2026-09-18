@@ -15,3 +15,11 @@ Thumbs.db
 
 # 논문 PDF (용량 문제 — 필요하면 이 줄을 지우세요)
 *.pdf
+
+# Python — tools/ 를 import 하면 생긴다
+__pycache__/
+*.py[cod]
+
+# 생성물 (도구로 다시 만든다)
+*.npz
+assets/
