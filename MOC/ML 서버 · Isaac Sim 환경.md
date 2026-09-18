@@ -441,6 +441,7 @@ Isaac Sim  (Tier 2) → 한계 거동 학습 + 최종 policy. 저작 비용 감�
 
 ## 🔗 연결
 
+- [[트랙 생성 · Frenet 변환]] — 트랙 USD + reference path + GPU Frenet projector
 - [[프로젝트 스택]] §8-5-1(선형 타이어 정량 확인) · §11(3-Tier) · §12-4(리스크 #2)
 - [[SAC v2 (Haarnoja 2018)]] — 이 환경에서 돌릴 알고리즘
 - [[Domain Randomization]] · [[질문 로그]]
