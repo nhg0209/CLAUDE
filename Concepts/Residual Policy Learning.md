@@ -3,15 +3,22 @@ tags: [concept, RL, control]
 개념: Residual Policy Learning
 등장논문: ["Residual Policy Learning (Silver 2018)", "Residual RL for Robot Control (Johannink 2019)", "On-Board RL for Racing (Trumpp 2025)"]
 프로젝트관련: 높음
-갱신: 2026-09-13
+갱신: 2026-09-23
 ---
 
 # Residual Policy Learning
 
 > [!abstract] 한 줄
 > policy가 action **전체**를 내는 대신, **기존 컨트롤러 출력에 얹을 보정항(residual)만** 학습한다.
-> 우리 프로젝트에서는 `controller/controller/combined` 의 **L1/Pure Pursuit을 고정 baseline으로 두고**,
-> RL이 *"PP가 틀리는 만큼"* 만 배우는 형태가 된다.
+> 우리 프로젝트의 $\pi_{\text{base}}$ 는 **순수 Pure Pursuit**(파라미터 1개)이고,
+> RL이 *"PP가 틀리는 만큼"* 만 배운다.
+
+> [!warning] 2026-09-23 정정 — base 는 스택의 `Controller.py` 가 **아니다**
+> 이전 판에서는 `controller/controller/combined` 의 L1 컨트롤러를 base 로 잡았다. 취소한다.
+> 그 파일은 **내부 상태 4개**(EMA 필터, PID 적분기, prev error, slew 기억)와
+> 상태머신 기반 게인 점프를 갖고 있어 **관측에 없는 상태가 base 출력을 바꾼다**
+> → residual 입장에서 환경이 non-Markovian 이 된다. 아래 §base 선정 참조.
+> `Controller.py` 는 버리지 않는다 — **비교군(실전 기준선)** 으로 쓴다.
 
 ---
 
@@ -21,10 +28,10 @@ $$a_t = \underbrace{\pi_{\text{base}}(s_t)}_{\text{고정. 학습하지 않음}}
 
 ```mermaid
 flowchart LR
-    S[state] --> B["π_base<br/>Pure Pursuit (고정)"]
+    S[state] --> B["π_base<br/>순수 PP + 마찰원 속도<br/>(고정, 파라미터 2개)"]
     S --> P["π_θ<br/>SAC로 학습"]
     B -->|a_base| SUM(("+"))
-    P -->|Δa| CLIP["clip ±20%"]
+    P -->|Δa| CLIP["bound<br/>넓게 시작 → 조인다"]
     CLIP --> SUM
     SUM -->|a_t| V[차량]
     B -.->|a_base 를 obs 에 포함| P
@@ -34,6 +41,75 @@ flowchart LR
 > Pure Pursuit은 **기하만** 본다 (lookahead point, 곡률).
 > residual policy는 $v_y$, slip angle $\beta$, yaw rate $\dot\psi$ **이력**을 본다.
 > **그 정보 차이가 곧 보정 능력의 상한이다.** → [[POMDP]], [[프로젝트 스택]] §8-3
+
+---
+
+## ★ base 선정 — 왜 순수 PP 인가 (2026-09-23 확정)
+
+### 기각: 스택의 `Controller.py`
+
+`controller/controller/combined/src/Controller.py` 는 호출 간에 상태를 들고 있다.
+
+```python
+self.filtered_heading_error    # EMA 필터 (alpha=0.1) — 1차 지연
+self.heading_error_integral    # PID 적분기 — 누적, 상한 없음
+self.prev_heading_error        # D 항
+self._speed_cmd_prev           # slew limiter 기억
+```
+
+여기에 `self.state`(START/TRAILING/OVERTAKE)가 게인을 이산적으로 바꾼다
+(`dynamic_gain *= 0.65`). 생성자 인자는 **40개**다.
+
+> [!danger] 숨은 상태는 imprecise 가 아니라 **unobservable** 이다
+> 같은 관측에서 base 출력이 달라지면 residual 입장에서 환경이 non-Markovian 이 된다.
+> SAC 가 배울 대상이 차량 동역학이 아니라 **적분기의 궤적**이 된다.
+> 아래 실패 모드 표의 *"baseline 이 wrong 이면 못 고친다"* 보다 나쁜 경우다.
+
+부수적으로 **배치가 안 된다** (numpy 단일 차량 + 분기 다수) → 256 env × 50 Hz 불가.
+순수 PP 는 torch 10줄이면 배치된다. 이것만으로도 결정이 강제된다.
+
+### 채택: 순수 PP + 마찰원 속도 규칙
+
+| 축 | 식 | 파라미터 |
+|---|---|---|
+| 횡 | $\delta = \arctan\!\big(2L\sin\eta / L_d\big)$, $\;L_d = \mathrm{clip}(m_{l1}v + q_{l1},\,t_{\min},\,t_{\max})$ | lookahead 규칙 (스택 값 재사용) |
+| 종 | $v_{\text{ref}} = \sqrt{a_{\text{lat,max}} / \lvert\kappa\rvert}$ | $a_{\text{lat,max}}$ 하나 |
+
+**Pure Pursuit 은 횡방향 전용**이라 $a_x$ base 가 비어 있다. 스택은 그 자리를
+`vx_planner` + 보정 6겹으로 채우지만 **ggv 가 자리표시자**(19행 전부 5.0/4.5)라 쓸 수 없다.
+그래서 곡률만 보는 기하 규칙으로 채운다 — 교과서 마찰원, 파라미터 1개.
+
+> [!important] 이것은 "속도 상한"이 아니다
+> $a_x = a_{x,\text{base}} + \Delta a_\theta$ 이므로 $\Delta a_\theta > 0$ 이면 policy 가 얼마든지 넘어선다.
+> 거부했던 것은 **vx 를 상한으로 쓰는 것**이었고, base 는 천장이 아니라 **출발점**이다.
+
+$a_{\text{lat,max}} = 3.5$ m/s² 를 고정값으로 쓴다 ($\mu = 3.5/9.81 = 0.357$ 에 해당).
+
+```
+|kappa|   R [m]    v_ref [m/s]     비고
+ 0.05     20.0       8.37
+ 0.20      5.0       4.18
+ 0.50      2.0       2.65
+ 0.761     1.31      2.14         이 트랙의 최소 곡률반경
+ → 0        ∞       clip 10.08    VESC 상한 (46500 ERPM / 4614)
+```
+
+- 커리큘럼 주 구간($\mu \ge 0.42$)에서 **base 가 항상 실현 가능**하다
+  → residual 은 대부분 *"더 갈 수 있는가"* 만 배운다
+- 꼬리 구간($\mu < 0.357$)에서는 base 가 **실현 불가능**해진다
+  → residual 이 **감속**을 배워야 한다. 이게 우리가 보고 싶은 능력이므로 의도된 설계다
+
+### 이 분리가 strawman 문제를 없앤다
+
+순수 PP 는 이제 **베이스라인이 아니라 우리 방법의 부품**이다. 비교 대상은 실전 컨트롤러가 그대로 남는다.
+
+```
+① Controller.py 단독        실전 기준선 (40 파라미터, 보정 8겹)
+② 순수 PP 단독              base 가 어디서 무너지는가
+③ 순수 PP + residual        우리 방법
+```
+
+②가 있어야 ③의 승리가 *residual 덕분*인지 *PP 가 원래 L5 보다 나았던 것*인지 갈린다.
 
 ---
 
@@ -92,12 +168,35 @@ nn.init.uniform_(self.fc_mu.weight, -1e-3, 1e-3)
 nn.init.zeros_(self.fc_mu.bias)
 ```
 
-### ② residual을 반드시 bound
+### ② residual을 bound 하되 **좁게 잡지 않는다** (2026-09-23 수정)
 
 ```python
-RESIDUAL_SCALE = np.array([0.10, 1.0])   # Δκ [1/m], Δa_x [m/s²]
+RESIDUAL_SCALE = np.array([0.40, 3.0])   # Δκ [1/m], Δa_x [m/s²]  ← 넓게 시작
 delta_a = RESIDUAL_SCALE * tanh_output   # tanh 출력이 [-1,1] → 자연히 유계
 ```
+
+이전 판의 `[0.10, 1.0]` 은 너무 좁다. 우리 차 기준:
+
+```
+delta_max = 0.4189 rad,  L = 0.33 m
+kappa_max = tan(0.4189)/0.33 = 1.349 1/m
+
+Δkappa bound 0.10  →  전체 조향 범위의 7.4%
+Δkappa bound 0.40  →  30%
+```
+
+> [!warning] 좁은 bound 는 거부했던 문제를 다시 들여온다
+> *"policy 가 우리가 추측한 한계를 못 넘는다"* — `vx` 를 상한으로 쓰는 것을 거부한 이유와 **구조가 같다.**
+> 저마찰에서 필요한 countersteer 가 7% 를 넘을 가능성이 높다.
+
+**운용 방침**: 넓게 시작 → 데이터로 조인다.
+
+| 로그 | 해석 | 조치 |
+|---|---|---|
+| $\lvert\Delta\rvert$ 가 계속 bound 에 붙어 있음 | bound 가 부족 | 넓힌다 |
+| bound 의 20% 이내만 씀 | 여유 과다 | 조인다 (분산 감소) |
+
+①(마지막 레이어 0 초기화)이 있으면 bound 가 넓어도 **출발점은 여전히 base** 라 위험이 작다.
 
 안 하면 policy가 baseline을 상쇄하고 자기 멋대로 한다 → **하이브리드 비용만 내고 순수 RL이 된다.**
 
@@ -124,29 +223,53 @@ delta_a = RESIDUAL_SCALE * tanh_output   # tanh 출력이 [-1,1] → 자연히 �
 
 ## 우리 코드에 붙이는 형태
 
+> [!note] 코드 위치 (2026-09-23 확정)
+> `nhg0209/rl-racing` (신규 repo). 볼트는 노트만 유지한다.
+> $\pi_{\text{base}}$ 와 action/obs 변환은 **sim·real 공유 코드**라 실차에 `pip install` 된다 —
+> Obsidian 볼트를 차에 설치할 수는 없다. 상세는 [[공유 인터페이스 (sim ↔ real)]].
+
 ```python
-# envs/racing_env.py
-from controller.combined.src.Controller import Controller   # ← 그대로 재사용
+# rl_racing/common/base_policy.py  — sim/real 공유. ROS 의존 금지
+def pure_pp(frenet, preview, v, cfg):          # 전부 (B,) 배치
+    L_d   = clamp(cfg.m_l1*v + cfg.q_l1, cfg.t_clip_min, cfg.t_clip_max)
+    eta   = lookahead_angle(frenet, preview, L_d)
+    delta = atan(2*cfg.wheelbase*sin(eta) / L_d)
+    kappa_base = tan(delta) / cfg.wheelbase
 
-self.pp = Controller(t_clip_min=0.7, t_clip_max=8.0, m_l1=0.47, q_l1=-0.2, ...)
-#                    └─ controller.yaml 값. nominal 조건에서 한 번만 튜닝
+    v_ref = clamp(sqrt(cfg.a_lat_max / abs(kappa_eff)), cfg.v_min, v_cap)
+    ax_base = cfg.kp_speed * (v_ref - v)
+    return kappa_base, ax_base
 
-# --- step ---
-delta_base, v_base = self.pp.compute(state, ref_path)    # ⚠️ 실제 시그니처 확인 필요
-kappa_base = math.tan(delta_base) / WHEELBASE            # PP 출력을 κ 단위로
-ax_base    = (v_base - v_meas) / dt
+# --- env.step ---
+o  = tracker.step(xy, yaw)                       # frenet_gpu
+pv = trk.preview(o["s"], xy, yaw)
+kappa_base, ax_base = pure_pp(o, pv, v, CFG)
 
-obs = concat([scan_270_x4, ego_dyn_x16, ref_path_ego, [kappa_base, ax_base]])
-#                                                      └─ ③ a_base 포함
-
-d_kappa, d_ax = RESIDUAL_SCALE * policy(obs)             # ② 유계
-delta, v = action_to_drive(kappa_base + d_kappa,
-                           ax_base + d_ax, v_meas, dt)   # sim/real 공유 함수
+obs = concat([ego_dyn_hist, path_feat(o, pv), [kappa_base, ax_base]])
+#                                              └─ 구현 ③ a_base 포함
+d_kappa, d_ax = RESIDUAL_SCALE * policy(obs)     # 구현 ② 유계
+kappa, ax = kappa_base + d_kappa, ax_base + d_ax
+delta = atan(cfg.wheelbase * kappa)              # 결정로그 #5
 ```
 
-> [!note] `Controller.py` 는 평범한 python 클래스다
-> ROS 노드는 `controller_manager.py` 쪽이다. 학습 루프에서 직접 인스턴스화하면 된다.
-> ⚠️ 단 **입출력 시그니처는 아직 확인하지 못했다** — 어댑터가 필요할 수 있다. → [[프로젝트 스택]] §12-2
+### 비교군 `Controller.py` 를 Isaac 에서 돌리는 법
+
+`Controller.py` 의 ROS 의존은 **`visualization_msgs` 단 하나, 1곳**이고
+`predict_pub=None` 이면 publish 되지 않는다 (`rclpy` 사용 0회). 그래서 **스택을 고치지 않고** 쓸 수 있다.
+
+```
+① import 우회 : sys.modules 에 visualization_msgs.msg 스텁을 심는다
+                 Marker / MarkerArray 가 속성만 받아먹는 더미면 충분
+② 상태 reset  : filtered_heading_error / heading_error_integral / prev_heading_error
+                 → hasattr 지연 초기화라 **del 로 지우면** 다음 호출에 재초기화된다
+                 _speed_cmd_prev → None 으로 되돌리면 "first cycle" 경로를 탄다
+```
+
+> [!warning] 이 우회는 `Controller.py` 의 `hasattr` 패턴에 의존한다
+> 스택이 바뀌면 조용히 깨진다. **회귀 테스트로 막는다** —
+> *"리셋 후 같은 입력 → 항상 같은 δ, speed"*.
+> 나중에 스택에 정식 `reset()` 을 넣는 편이 낫다 (실차에서도 state 전환 시 적분기가
+> 살아남는 건 버그에 가깝다). 그때 GitHub App 설치가 필요하다.
 
 ---
 
@@ -182,7 +305,8 @@ delta, v = action_to_drive(kappa_base + d_kappa,
 
 ## 🔗 연결
 
-- [[프로젝트 스택]] — §9-3 `controller/combined` 판정, §13 결정 로그
+- [[공유 인터페이스 (sim ↔ real)]] — π_base·action·obs 규약 (여기서 어긋나면 재학습)
+- [[프로젝트 스택]] — §9-3 `controller/combined` 판정, §13 결정 로그 #16~#19
 - [[SAC (Haarnoja 2018)]] · [[SAC v2 (Haarnoja 2018)]] — residual head도 squashed Gaussian
 - [[TC-Driver (ETH 2022)]] — trajectory-conditioned. residual과 **직교하는** 아이디어 (둘을 합칠 수 있다)
 - [[Asymmetric Actor-Critic (Pinto 2017)]] — critic만 privileged. residual과 병행 가능
