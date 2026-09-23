@@ -2,6 +2,7 @@
 tags: [moc, interface, sim2real, residual, 규약]
 작성일: 2026-09-23
 상태: 🔒 확정분 / ⏳ 미확정분 혼재 — **학습 시작 전에 전부 🔒 여야 한다**
+갱신: 2026-09-23 (비교군 어댑터 실측 반영)
 repo: nhg0209/rl-racing
 ---
 
@@ -88,31 +89,68 @@ v [m/s]   L_d [m]
 **끄는 것** (= 순수 PP 로 만드는 부분): future position 예측, curvature 단축
 ($-c\,\bar\kappa v^2$), lat_err 하한 확장, heading PID, steer scaling 3종.
 
-> [!note] lookahead 점을 어떻게 찾는가 — 정의를 맞춰야 한다
-> 스택 `waypoint_at_distance_before_car` 는 **경로 호길이 기준**이다.
-> 우리도 `FrenetTrack` 에서 $s + L_d$ 로 뽑는다 (유클리드 거리 기준이 아니다).
-> 두 정의는 곡률 구간에서 최대 수 cm 다르다. **실측해서 문서에 남길 것.** ⏳
+> [!note] 🔒 lookahead 점 정의 — 실측 완료 (2026-09-23)
+> 스택 `waypoint_at_distance_before_car` 는 **docstring 이 말하는 "frenet distance" 가 아니다.**
+> 코드는 폴리라인 **현 길이의 누적합 + `searchsorted`** 이고 **보간이 없다.**
+> `cum[i-1] < d` 이므로 **항상 요청보다 짧은 점**을 돌려준다.
+>
+> ```
+>  v[m/s]  L_d[m]   실제 호길이   부족분[m]   두 점 거리[m]   delta 차이 최대
+>    2.00   0.740      0.700      0.0405        0.090        2.45° (조향의 10.2%)
+>    3.00   1.210      1.199      0.0108        0.063        1.08°
+>    5.00   2.150      2.099      0.0514        0.099        0.56°
+>    8.00   3.560      3.498      0.0623        0.108        0.31°
+>   10.08   4.538      4.497      0.0406        0.088        0.21°
+> ```
+>
+> **순수 PP 는 보간 방식을 쓴다** — 우리 방법의 부품이지 스택 재현이 아니다.
+> 단 ①(Controller.py)과 ②(순수 PP)를 비교할 때 **저속에서 조향의 10%** 가 이 정의 차이로
+> 남는다는 것을 리포트에 명시한다.
 
-### 2-2. 종방향
+### 2-2. 종방향 — **오프라인 속도 프로파일** (2026-09-23 실측으로 수정)
 
-$$v_{\text{ref}} = \mathrm{clip}\!\left(\sqrt{\frac{a_{\text{lat,max}}}{|\kappa_{\text{eff}}|}},\; v_{\min},\; v_{\text{cap}}\right),
-\qquad a_{x,\text{base}} = k_p\,(v_{\text{ref}} - v)$$
+> [!danger] 런타임 규칙 $v_{\text{ref}} = \sqrt{a_{\text{lat,max}}/|\kappa_{\text{eff}}|}$ 는 폐기했다
+> $\kappa_{\text{eff}}$ 를 "앞 창 안의 최대 $|\kappa|$" 로 잡으면 **코너가 창에 들어오는 순간
+> $v_{\text{ref}}$ 가 한 격자(10 cm)에서 뚝 떨어진다** = 계단 함수.
+> 실측: 요구 감속이 **79~156 m/s²**. 창 크기를 1~12 m 어떻게 잡아도 못 고친다.
+
+대신 **backward/forward pass** 로 트랙마다 한 번 계산해 `.npz` 에 넣는다.
+
+```
+v_allow[i] = min( sqrt(a_lat / |kappa_i|), v_max )
+반복 (폐루프라 2바퀴 이상):
+  backward  v[i] = min(v[i], sqrt(v[i+1]² + 2·a_lon·ds))     앞 코너를 위해 미리 감속
+  forward   v[i] = min(v[i], sqrt(v[i-1]² + 2·a_lon·ds))     가속도 한계
+```
 
 | 파라미터 | 값 | 근거 |
 |---|---|---|
-| $a_{\text{lat,max}}$ | **3.5 m/s²** | $\mu = 3.5/9.81 = 0.357$. 커리큘럼 주 구간($\mu \ge 0.42$)에서 base 가 실현 가능, 꼬리에서만 residual 이 감속을 배운다 |
-| $v_{\text{cap}}$ | 에피소드의 랜덤화된 속도 상한 | |
-| $k_p$ | ⏳ **미정** — $\mu{=}1.0$ 에서 튜닝 후 **고정** | μ 별로 바꾸면 "PP 가 μ 에서 무너진다"가 게인 탓이 된다 |
-| $\kappa_{\text{eff}}$ | ⏳ **미정** — preview 앞 4 m 구간의 $\max|\kappa|$ 로 시작 | 스택은 `mean(|kappa[i+10:i+20]|)`. 제동거리를 반영하려면 창을 속도에 따라 늘려야 할 수도 |
+| $a_{\text{lat}}$ | **3.5 m/s²** | $\mu = 0.357$ 상당. 커리큘럼 주 구간에서 실현 가능 |
+| $a_{\text{lon}}$ | **3.5 m/s²** | 같은 값 하나로 통일. 실측 최대 가속은 $\mu{=}1.0$ 에서 4.88 이라 여유 있다 |
+| $k_p$ | ⏳ 미정 — $\mu{=}1.0$ 에서 튜닝 후 **고정** | μ 별로 바꾸면 "PP 가 μ 에서 무너진다"가 게인 탓이 된다 |
+
+$$a_{x,\text{base}} = k_p\,\big(v_{\text{profile}}(s) - v\big)$$
 
 ```
-|kappa|   R [m]    v_ref [m/s]
- 0.05     20.0       8.37
- 0.20      5.0       4.18
- 0.50      2.0       2.65
- 0.761     1.31      2.14      ← ifac_0824_mapping_3 최소 곡률반경
- → 0        ∞       10.08 로 clip
+                 v_ref 최소  v_ref 최대  IQP 대비  요구 감속  요구 가속
+ifac_0824_…_3       2.144      8.144     0.746      3.50      3.50
+ifac_roboracer      2.058      8.091     0.820      3.50      3.50
 ```
+
+**요구 감속·가속이 정확히 $a_{\text{lon}}$ 으로 묶인다 — 구성상 보장된다.**
+런타임 비용 0(조회), sim/real 동일, 파라미터 2개.
+
+> [!warning] IQP 속도 프로파일과 무엇이 다른가 — 스스로 속이지 말 것
+> 형태는 비슷해졌다. 남은 차이는 **입력의 출처**다.
+> IQP 는 `ggv.csv`(19행 전부 5.0/4.5, 미측정, **스택 스스로도 지키지 못해** slew limiter 를
+> 덧댔다)를 쓴다. 우리는 **우리가 고른 숫자 두 개**를 쓰고 그 값을 문서에 적는다.
+> 그리고 residual 이 이 프로파일을 **넘어설 수 있다** — 상한이 아니다.
+> 이 구분이 얇다는 것을 인정하고, 리포트에 그대로 쓴다.
+
+> [!note] ⏳ 속도 상한 랜덤화와의 상호작용
+> 에피소드마다 $v_{\text{cap}} \sim U(4.5, 10.5)$ 로 바뀐다. 프로파일을 $v_{\text{cap}}$ 로
+> 그냥 clip 하면 가속 구간에서 자기일관성이 약간 깨진다.
+> 에피소드 시작 때 그 cap 으로 pass 를 다시 돌리는 편이 깨끗하다 (O(N), 422점).
 
 ---
 
@@ -164,25 +202,67 @@ a_x = a_{x,\text{base}} + \Delta a_{x,\theta}, \qquad
 
 ---
 
-## 5. 🔒 비교군 실행 — `Controller.py` 를 스택 수정 없이
+## 5. 🔒 비교군 실행 — `Controller.py` 를 스택 수정 없이 (검증 완료)
+
+`tools/test_controller_adapter.py` 로 실제 동작을 확인했다.
+
+### 막는 것은 두 개다 (ROS import 하나가 아니었다)
 
 ```
-ROS 의존:  visualization_msgs 단 하나, 1곳 (346~364행)
-rclpy:     0회
-publish:   predict_pub=None 이면 호출되지 않음
+① visualization_msgs         → sys.modules 에 더미 주입 (Marker/MarkerArray, predict_pub=None)
+② converter (FrenetConverter) → **생성자 필수 인자**. get_frenet(x,y) 만 쓰인다 (632행)
+                                 → FrenetTrack.locate 로 어댑터 10줄
 ```
 
+### 리셋해야 하는 상태 — solo 주행에서 출력에 영향을 주는 것만 7개
+
 ```
-① sys.modules 에 visualization_msgs.msg 스텁 주입 (더미 Marker/MarkerArray)
-② 에피소드마다 내부 상태 리셋
-     del filtered_heading_error / heading_error_integral / prev_heading_error
-     _speed_cmd_prev = None
+del  filtered_heading_error      EMA 필터        (hasattr 지연 초기화)
+del  heading_error_integral      PID 적분기       (hasattr, 무한 누적)
+del  prev_heading_error          PID D 항        (hasattr)
+set  _speed_cmd_prev  = None     slew limiter
+set  _aeb_engaged     = False    AEB 래치
+set  _aeb_cycles      = 0        AEB 유지 카운터
+set  current_steer_command = 0   ★ calc_future_position 이 먹는다 = 조향의 되먹임
+```
+opponent·START 까지 포함하면 12개 이상 (`_trailing_entry/_handoff`, `i_gap`,
+`trailing_command/speed`, `boost_mode`, `cur_state_speed`, `yaw_rate`).
+
+> [!danger] ★ `current_steer_command` 는 내가 앞서 놓친 것이다
+> `calc_future_position` 이 **직전 스텝의 조향각**으로 미래 위치를 예측하고,
+> 그 미래 위치가 lookahead·횡오차·속도를 전부 결정한다.
+> 즉 `Controller.py` 는 **조향이 다음 스텝 관측으로 되먹임되는 닫힌 루프**다.
+> "내부 상태 4개" 라고 썼던 것은 틀렸다 — 이건 residual base 로 더더욱 쓸 수 없다는 뜻이다.
+
+### 검증 결과
+
+```
+A  import · 생성 · main_loop 1스텝           ✅
+B  reset 후 결정성                            max|Δdelta| 0.000e+00, max|Δspeed| 0.000e+00  ✅
+   reset 없이 (다른 구간 24스텝으로 오염)       max|Δdelta| 4.6e-3 rad, max|Δspeed| 2.91 m/s  ← 결정로그 #16 의 정량 근거
 ```
 
 > [!warning] `hasattr` 지연 초기화 패턴에 의존한다
-> 회귀 테스트로 고정: **리셋 후 같은 입력 → 항상 같은 (δ, speed)**.
-> 정식 `reset()` 을 스택에 넣는 편이 낫고 (실차에서도 state 전환 시 적분기 잔존은 버그),
+> 스택이 바뀌면 조용히 깨진다. **B 를 회귀 테스트로 상시 실행한다.**
+> 정식 `reset()` 을 스택에 넣는 편이 낫다 (실차에서도 state 전환 시 적분기 잔존은 버그).
 > 그때 GitHub App 설치가 필요하다. → M6 전까지는 우회로 간다.
+
+### 🔒 보정 레이어 중 **실제로 작동하는 것은 3개뿐**이다 (shipped yaml 기준)
+
+| 레이어 | 판정 | 근거 |
+|---|---|---|
+| `speed_adjust_lat_err` | ❌ **완전한 no-op** | $\text{curv} = \mathrm{clip}(2(\overline{|\kappa|}/0.8)-2,0,1)$. ifac_0824 는 $\max|\kappa| = 0.761 < 0.8$ 이라 **구조적으로** 0, roboracer 는 0.827 로 넘지만 10점 평균 최대가 0.744 라 역시 0 |
+| `acc_scaling` | ❌ 정상주행 no-op | `acc_scaler_for_steer = dec_scaler_for_steer = 1.0`. START 에서만 ×0.7 |
+| `speed_steer_scaling` | ✅ $v > 6.5$ | $v{=}8 \to \times 0.786$, $v{=}10.08 \to \times 0.5$ |
+| `steer_scaling_for_lat_err` | ✅ 항상 | $2^{\text{lat\_err}}$ — 0.5 m 에서 ×1.41, 1.0 m 에서 ×2.0 |
+| `speed_adjust_heading` | ✅ 헤딩오차 10° 초과 | 20°→×0.89, 45°→×0.75, 90°→×0.5 |
+| future position 예측 | ✅ 항상 | 단 IMU 분기는 `lambda=gamma=1.0` 이라 **죽은 코드**, 순수 kinematic |
+| L1 curvature 단축 | ✅ 항상 | $-c\,\overline{\kappa}\,v^2$ |
+| heading PID | ✅ 항상 | KI=0 이라 실질 PD |
+
+> [!tip] 이 표가 ablation 을 대체한다
+> "보정 8겹" 이 아니라 **실질 6겹**이고 그중 2개는 죽어 있다.
+> 지난 턴에 제안한 L1~L4 사다리를 돌리지 않아도 **어느 레이어가 무엇을 하는지 이미 수치로 안다.**
 
 ---
 

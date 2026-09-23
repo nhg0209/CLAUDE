@@ -15,8 +15,8 @@ tags: [concept, RL, control]
 
 > [!warning] 2026-09-23 정정 — base 는 스택의 `Controller.py` 가 **아니다**
 > 이전 판에서는 `controller/controller/combined` 의 L1 컨트롤러를 base 로 잡았다. 취소한다.
-> 그 파일은 **내부 상태 4개**(EMA 필터, PID 적분기, prev error, slew 기억)와
-> 상태머신 기반 게인 점프를 갖고 있어 **관측에 없는 상태가 base 출력을 바꾼다**
+> 그 파일은 solo 주행에서만 **내부 상태 7개**(EMA 필터, PID 적분기, prev error, slew 기억,
+> AEB 래치·카운터, 그리고 **직전 조향각**)를 갖고 있어 **관측에 없는 상태가 base 출력을 바꾼다**
 > → residual 입장에서 환경이 non-Markovian 이 된다. 아래 §base 선정 참조.
 > `Controller.py` 는 버리지 않는다 — **비교군(실전 기준선)** 으로 쓴다.
 
@@ -55,7 +55,16 @@ self.filtered_heading_error    # EMA 필터 (alpha=0.1) — 1차 지연
 self.heading_error_integral    # PID 적분기 — 누적, 상한 없음
 self.prev_heading_error        # D 항
 self._speed_cmd_prev           # slew limiter 기억
+self._aeb_engaged, _aeb_cycles # AEB 래치 + 유지 카운터
+self.current_steer_command     # ★ calc_future_position 이 먹는다
 ```
+
+> [!danger] ★ `current_steer_command` 가 결정적이다
+> `calc_future_position` 이 **직전 스텝의 조향각**으로 미래 위치를 예측하고,
+> 그 미래 위치가 lookahead·횡오차·속도를 **전부** 결정한다.
+> 즉 `Controller.py` 는 조향이 다음 스텝 관측으로 되먹임되는 **닫힌 루프**다.
+> 실측: 다른 구간 24스텝으로 오염시킨 뒤 같은 구간을 재주행하면
+> δ 가 4.6e-3 rad, **speed 가 2.91 m/s** 달라진다.
 
 여기에 `self.state`(START/TRAILING/OVERTAKE)가 게인을 이산적으로 바꾼다
 (`dynamic_gain *= 0.65`). 생성자 인자는 **40개**다.
@@ -73,7 +82,7 @@ self._speed_cmd_prev           # slew limiter 기억
 | 축 | 식 | 파라미터 |
 |---|---|---|
 | 횡 | $\delta = \arctan\!\big(2L\sin\eta / L_d\big)$, $\;L_d = \mathrm{clip}(m_{l1}v + q_{l1},\,t_{\min},\,t_{\max})$ | lookahead 규칙 (스택 값 재사용) |
-| 종 | $v_{\text{ref}} = \sqrt{a_{\text{lat,max}} / \lvert\kappa\rvert}$ | $a_{\text{lat,max}}$ 하나 |
+| 종 | **오프라인 backward/forward pass 속도 프로파일** | $a_{\text{lat}}, a_{\text{lon}}$ 둘 |
 
 **Pure Pursuit 은 횡방향 전용**이라 $a_x$ base 가 비어 있다. 스택은 그 자리를
 `vx_planner` + 보정 6겹으로 채우지만 **ggv 가 자리표시자**(19행 전부 5.0/4.5)라 쓸 수 없다.
@@ -83,15 +92,18 @@ self._speed_cmd_prev           # slew limiter 기억
 > $a_x = a_{x,\text{base}} + \Delta a_\theta$ 이므로 $\Delta a_\theta > 0$ 이면 policy 가 얼마든지 넘어선다.
 > 거부했던 것은 **vx 를 상한으로 쓰는 것**이었고, base 는 천장이 아니라 **출발점**이다.
 
-$a_{\text{lat,max}} = 3.5$ m/s² 를 고정값으로 쓴다 ($\mu = 3.5/9.81 = 0.357$ 에 해당).
+$a_{\text{lat}} = a_{\text{lon}} = 3.5$ m/s² 를 고정값으로 쓴다 ($\mu = 3.5/9.81 = 0.357$ 에 해당).
+
+> [!danger] 런타임 규칙 $\sqrt{a/\lvert\kappa\rvert}$ 는 실측으로 폐기했다 (2026-09-23)
+> $\kappa$ 를 "앞 창 안의 최대" 로 잡으면 코너가 창에 들어오는 순간 $v_{\text{ref}}$ 가
+> **한 격자(10 cm)에서 뚝 떨어진다** → 요구 감속 **79~156 m/s²**. 창 크기로는 못 고친다.
+> **backward/forward pass 로 트랙마다 한 번 계산해 `.npz` 에 넣는다** —
+> 요구 감속·가속이 구성상 $a_{\text{lon}}$ 으로 묶인다. 상세는 [[공유 인터페이스 (sim ↔ real)]].
 
 ```
-|kappa|   R [m]    v_ref [m/s]     비고
- 0.05     20.0       8.37
- 0.20      5.0       4.18
- 0.50      2.0       2.65
- 0.761     1.31      2.14         이 트랙의 최소 곡률반경
- → 0        ∞       clip 10.08    VESC 상한 (46500 ERPM / 4614)
+                 v_ref 최소  v_ref 최대  IQP 대비  요구 감속  요구 가속
+ifac_0824_…_3       2.144      8.144     0.746      3.50      3.50
+ifac_roboracer      2.058      8.091     0.820      3.50      3.50
 ```
 
 - 커리큘럼 주 구간($\mu \ge 0.42$)에서 **base 가 항상 실현 가능**하다
