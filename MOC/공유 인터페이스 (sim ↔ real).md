@@ -25,7 +25,7 @@ repo: nhg0209/rl-racing
 |---|---|---|---|
 | **A** 학습 전용 | Isaac Lab env, reward, randomization, curriculum, SAC 루프, 트랙 생성, Frenet projector | `rl-racing` | 지금 |
 | **B** sim·real 공유 | **π_base**(순수 PP, 조향만), action 변환, **obs 조립**, 정규화 상수, residual bound | `rl-racing/common/` | **지금 고정** |
-| **C** 실차 전용 | ROS 2 노드, ONNX/TensorRT, action low-pass, policy fallback | `unicorn-racing-stack` | **M6** |
+| **C** 실차 전용 | ROS 2 노드, CPU 추론(torch 또는 ONNX Runtime), action low-pass, policy fallback | `unicorn-racing-stack` | **M6** |
 
 ```
 rl-racing  ──import──▶  (없음)              학습이 ROS 에 의존하지 않는다
