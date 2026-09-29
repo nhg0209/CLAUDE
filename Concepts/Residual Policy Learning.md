@@ -3,15 +3,18 @@ tags: [concept, RL, control]
 개념: Residual Policy Learning
 등장논문: ["Residual Policy Learning (Silver 2018)", "Residual RL for Robot Control (Johannink 2019)", "On-Board RL for Racing (Trumpp 2025)"]
 프로젝트관련: 높음
-갱신: 2026-09-23
+갱신: 2026-09-29
 ---
 
 # Residual Policy Learning
 
 > [!abstract] 한 줄
 > policy가 action **전체**를 내는 대신, **기존 컨트롤러 출력에 얹을 보정항(residual)만** 학습한다.
-> 우리 프로젝트의 $\pi_{\text{base}}$ 는 **순수 Pure Pursuit**(파라미터 1개)이고,
-> RL이 *"PP가 틀리는 만큼"* 만 배운다.
+> 우리 프로젝트는 **하이브리드**다 (2026-09-29 확정):
+> - **조향** — 순수 Pure Pursuit 이 base, RL 은 *"PP가 틀리는 만큼"* 만 배운다 (residual)
+> - **가속** — base 없음. RL 이 **직접** 낸다
+>
+> 원칙: **믿을 수 있는 base 가 있는 축만 residual 로 한다.**
 
 > [!warning] 2026-09-23 정정 — base 는 스택의 `Controller.py` 가 **아니다**
 > 이전 판에서는 `controller/controller/combined` 의 L1 컨트롤러를 base 로 잡았다. 취소한다.
@@ -26,15 +29,18 @@ tags: [concept, RL, control]
 
 $$a_t = \underbrace{\pi_{\text{base}}(s_t)}_{\text{고정. 학습하지 않음}} \;+\; \underbrace{\pi_\theta(s_t)}_{\text{학습하는 residual}}$$
 
+일반형은 위와 같고, **우리 구조(하이브리드)** 는 조향 축에만 이 식을 쓴다:
+
 ```mermaid
 flowchart LR
-    S[state] --> B["π_base<br/>순수 PP + 마찰원 속도<br/>(고정, 파라미터 2개)"]
-    S --> P["π_θ<br/>SAC로 학습"]
-    B -->|a_base| SUM(("+"))
-    P -->|Δa| CLIP["bound<br/>넓게 시작 → 조인다"]
+    S[state] --> B["π_base<br/>순수 PP<br/>(조향만, 고정)"]
+    S --> P["π_θ<br/>SAC로 학습<br/>출력 2개"]
+    B -->|κ_PP| SUM(("+"))
+    P -->|Δκ| CLIP["bound ±0.40<br/>넓게 시작 → 조인다"]
     CLIP --> SUM
-    SUM -->|a_t| V[차량]
-    B -.->|a_base 를 obs 에 포함| P
+    SUM -->|κ → δ| V[차량]
+    P -->|a_x 직접<br/>base 없음| V
+    B -.->|κ_PP 를 obs 에 포함| P
 ```
 
 > [!important] residual의 가치는 전부 "baseline이 쓰지 않는 관측"에서 나온다
@@ -77,51 +83,57 @@ self.current_steer_command     # ★ calc_future_position 이 먹는다
 부수적으로 **배치가 안 된다** (numpy 단일 차량 + 분기 다수) → 256 env × 50 Hz 불가.
 순수 PP 는 torch 10줄이면 배치된다. 이것만으로도 결정이 강제된다.
 
-### 채택: 순수 PP + 마찰원 속도 규칙
+### 채택: 하이브리드 — 조향만 residual, 가속은 직접 (2026-09-29 확정)
 
-| 축 | 식 | 파라미터 |
+$$\kappa = \underbrace{\kappa_{\text{PP}}}_{\text{base}} + \Delta\kappa_\theta, \qquad
+a_x = \underbrace{a_{x,\theta}}_{\text{base 없음}}$$
+
+| 축 | base | 근거 |
 |---|---|---|
-| 횡 | $\delta = \arctan\!\big(2L\sin\eta / L_d\big)$, $\;L_d = \mathrm{clip}(m_{l1}v + q_{l1},\,t_{\min},\,t_{\max})$ | lookahead 규칙 (스택 값 재사용) |
-| 종 | **오프라인 backward/forward pass 속도 프로파일** | $a_{\text{lat}}, a_{\text{lon}}$ 둘 |
+| 조향 | 순수 PP: $\delta = \arctan(2L\sin\eta/L_d)$, $L_d = \mathrm{clip}(m_{l1}v+q_{l1},\,t_{\min},\,t_{\max})$ | **기하 법칙**이라 저속·고그립에서 정확하다 → base 로 믿을 만하다 |
+| 가속 | **없음** | 믿을 만한 base 가 없다. ggv 는 자리표시자, 우리가 고른 숫자도 결국 추측이다 |
 
-**Pure Pursuit 은 횡방향 전용**이라 $a_x$ base 가 비어 있다. 스택은 그 자리를
-`vx_planner` + 보정 6겹으로 채우지만 **ggv 가 자리표시자**(19행 전부 5.0/4.5)라 쓸 수 없다.
-그래서 곡률만 보는 기하 규칙으로 채운다 — 교과서 마찰원, 파라미터 1개.
+> [!important] 원칙 — 믿을 수 있는 base 가 있는 축만 residual 로 한다
+> 이게 연구 동기 *"ggv·가속 한계 실측이 어려우니 속도 프로파일 없이 policy 가 스스로
+> 주행하게 한다"* 와 **그대로 일치**한다. 종방향에 손으로 고른 숫자가 하나도 남지 않는다.
 
-> [!important] 이것은 "속도 상한"이 아니다
-> $a_x = a_{x,\text{base}} + \Delta a_\theta$ 이므로 $\Delta a_\theta > 0$ 이면 policy 가 얼마든지 넘어선다.
-> 거부했던 것은 **vx 를 상한으로 쓰는 것**이었고, base 는 천장이 아니라 **출발점**이다.
+### 이 결정에 이르기까지 — 기각된 종방향 base 두 개
 
-$a_{\text{lat}} = a_{\text{lon}} = 3.5$ m/s² 를 고정값으로 쓴다 ($\mu = 3.5/9.81 = 0.357$ 에 해당).
+| 시도 | 결과 |
+|---|---|
+| 런타임 $v_{\text{ref}} = \sqrt{a/\lvert\kappa_{\text{eff}}\rvert}$ | **실측으로 폐기.** $1/\sqrt\kappa$ 는 $\kappa \to 0$ 에서 기울기가 무한대라 직선 끝 작은 곡률이 창에 들어오는 순간 속도가 절벽처럼 떨어진다 (0.5 m 에 10.08 → 6.79 m/s, **요구 감속 79 m/s²**). 창 1~8 m 는 절벽의 **위치만** 옮기고, 12 m 는 절벽 대신 직선 최고속이 2.93 m/s 로 붕괴 |
+| 오프라인 forward/backward pass + 마찰원 ($a = 3.5$) | 작동은 한다 (요구 가감속이 구성상 3.5 로 묶임). 그러나 **스택 IQP 속도 계산(`vel_planner.py` `__solver_fb_closed`)과 같은 알고리즘**이라 "IQP 를 버렸다"는 주장과의 구분이 입력의 출처뿐으로 얇아진다 |
 
-> [!danger] 런타임 규칙 $\sqrt{a/\lvert\kappa\rvert}$ 는 실측으로 폐기했다 (2026-09-23)
-> $\kappa$ 를 "앞 창 안의 최대" 로 잡으면 코너가 창에 들어오는 순간 $v_{\text{ref}}$ 가
-> **한 격자(10 cm)에서 뚝 떨어진다** → 요구 감속 **79~156 m/s²**. 창 크기로는 못 고친다.
-> **backward/forward pass 로 트랙마다 한 번 계산해 `.npz` 에 넣는다** —
-> 요구 감속·가속이 구성상 $a_{\text{lon}}$ 으로 묶인다. 상세는 [[공유 인터페이스 (sim ↔ real)]].
+두 번째는 버리지 않는다 — **실험 ② 전용 속도 규칙**으로 강등했다. → [[공유 인터페이스 (sim ↔ real)]] §7
+
+### 하이브리드의 대가
+
+| 잃는 것 | 영향 | 대응 |
+|---|---|---|
+| 이득 ① "step 0 부터 완주" (종방향) | 0 초기화면 $a_x \approx 0$ → 차가 안 움직임 → progress 0 → 배울 게 없음 | 가속 head **bias 만** 약한 양의 가속으로 초기화 + 커리큘럼을 $\mu{=}1.0$ 부터 |
+| 이득 ③ "안전 하한" (종방향) | 저마찰 사고는 대부분 **속도 과다** — 보호가 없는 바로 그 축 | 학습: 벽 충돌 종료 + VESC $v_{\text{cap}}$. 실차: M6 fallback(L1) |
+| 실험 ② 의 정의 | 순수 PP 단독도 **달리려면 속도가 필요**하다 | 비교용 속도 규칙을 따로 둔다 (위 기각안 2) |
+
+### 얻는 것 — 리포트의 핵심 그림이 하나 더 생긴다
+
+학습된 속도 프로파일을 $\mu$ 별로 그려서 마찰 한계 $\sqrt{\mu g/\lvert\kappa\rvert}$ 와 겹치면,
+**policy 가 마찰에 맞춰 속도를 스스로 찾았다**는 직접 증거가 된다.
+(조향 residual 크기 vs 슬립 그림 — 아래 ⑥ — 과 짝을 이룬다)
+
+### 실험 구성
+
+순수 PP 는 **베이스라인이 아니라 우리 방법의 부품**이다. 비교 대상은 실전 컨트롤러가 그대로 남는다.
 
 ```
-                 v_ref 최소  v_ref 최대  IQP 대비  요구 감속  요구 가속
-ifac_0824_…_3       2.144      8.144     0.746      3.50      3.50
-ifac_roboracer      2.058      8.091     0.820      3.50      3.50
+①  Controller.py 단독     스택 L1 조향       + 스택 IQP×0.8 속도        실전 기준선
+②  순수 PP 단독           순수 PP 조향       + 비교용 속도 프로파일       base 가 어디서 무너지는가
+③' PP 조향 고정           순수 PP 조향       + policy 속도              조향 residual 의 기여 분리
+③  우리 방법              순수 PP + Δκ       + policy 속도              
 ```
 
-- 커리큘럼 주 구간($\mu \ge 0.42$)에서 **base 가 항상 실현 가능**하다
-  → residual 은 대부분 *"더 갈 수 있는가"* 만 배운다
-- 꼬리 구간($\mu < 0.357$)에서는 base 가 **실현 불가능**해진다
-  → residual 이 **감속**을 배워야 한다. 이게 우리가 보고 싶은 능력이므로 의도된 설계다
-
-### 이 분리가 strawman 문제를 없앤다
-
-순수 PP 는 이제 **베이스라인이 아니라 우리 방법의 부품**이다. 비교 대상은 실전 컨트롤러가 그대로 남는다.
-
-```
-① Controller.py 단독        실전 기준선 (40 파라미터, 보정 8겹)
-② 순수 PP 단독              base 가 어디서 무너지는가
-③ 순수 PP + residual        우리 방법
-```
-
-②가 있어야 ③의 승리가 *residual 덕분*인지 *PP 가 원래 L5 보다 나았던 것*인지 갈린다.
+- ②가 있어야 ③의 승리가 *우리 방법 덕*인지 *순수 PP 가 원래 L1 보다 나았던 것*인지 갈린다
+- ②→③ 사이에 **두 가지가 동시에 바뀐다** (속도 출처 + 조향 residual). ③' 가 그 둘을 가른다:
+  ②→③' = 속도를 policy 에 맡긴 효과, ③'→③ = 조향 residual 의 효과
 
 ---
 
@@ -135,6 +147,9 @@ ifac_roboracer      2.058      8.091     0.820      3.50      3.50
 | ④ | **sim2real 위험이 residual 크기로 제한** | PP는 기하 법칙이라 sim/real에서 동일하게 동작. 전이 위험을 지는 건 residual뿐 |
 | ⑤ | **디버깅 가능** | residual을 로깅하면 *"baseline이 어디서 얼마나 틀리는지"* 가 보인다. E2E에서는 원천적으로 불가능 |
 | ⑥ | **★ 학습 대상이 물리적 의미를 갖는다** | 아래 |
+
+> [!note] 하이브리드에서는 위 이득이 **조향 축에만** 적용된다
+> 가속 축은 base 가 없으므로 ①③④ 가 해당되지 않는다 — 대가와 대응은 위 §하이브리드의 대가.
 
 ### ⑥ 상세 — 우리 논문의 핵심 그림이 된다
 
@@ -166,6 +181,10 @@ Pure Pursuit은 **kinematic(무슬립) 영역에서 정확하고 한계에서 �
 > [!tip] 권고 순서
 > **(a)로 시작 → 되면 (b) 시도.** (a)만으로도 방어 가능한 기여이고, 문구만 정직하게 쓰면 된다.
 
+> [!note] 하이브리드로 긴장이 절반으로 줄었다 (2026-09-29)
+> 루프에 남는 손 튜닝 값은 **PP 의 lookahead 규칙**(`m_l1, q_l1, t_clip_min` — 스택 값 재사용)뿐이다.
+> 속도 쪽에는 튜닝 값이 **하나도 없다.** "tune once" 의 대상이 조향 하나로 좁혀졌다.
+
 ---
 
 ## 구현 디테일 — 여기서 다들 틀린다
@@ -180,12 +199,26 @@ nn.init.uniform_(self.fc_mu.weight, -1e-3, 1e-3)
 nn.init.zeros_(self.fc_mu.bias)
 ```
 
+> [!warning] 하이브리드에서는 **조향 head 만** 이렇게 한다
+> 가속 head 까지 0 으로 두면 $a_x \approx 0$ → 차가 안 움직임 → progress 0 → 배울 게 없다.
+> 가속 head 는 weight 만 작게, **bias 는 약한 양의 가속**으로 초기화한다.
+>
+> ```python
+> nn.init.uniform_(self.fc_mu.weight, -1e-3, 1e-3)
+> self.fc_mu.bias.data[STEER] = 0.0             # 조향 residual: base 그대로 출발
+> self.fc_mu.bias.data[ACCEL] = atanh(a0 / A_MAX)  # 가속: 약하게 출발 (a0 ⏳ 미정)
+> ```
+
 ### ② residual을 bound 하되 **좁게 잡지 않는다** (2026-09-23 수정)
 
 ```python
-RESIDUAL_SCALE = np.array([0.40, 3.0])   # Δκ [1/m], Δa_x [m/s²]  ← 넓게 시작
-delta_a = RESIDUAL_SCALE * tanh_output   # tanh 출력이 [-1,1] → 자연히 유계
+DKAPPA_BOUND = 0.40                      # Δκ [1/m] — 조향 residual 만. 넓게 시작
+d_kappa = DKAPPA_BOUND * tanh_out[STEER]
+a_x     = A_MAX        * tanh_out[ACCEL]  # 가속은 residual 이 아니다 → 전체 범위
 ```
+
+> 가속은 residual 이 아니므로 bound 개념이 없다. 범위는 차의 실제 가감속 범위이고,
+> 실제 제한은 VESC $v_{\text{cap}}$ 과 마찰이 한다.
 
 이전 판의 `[0.10, 1.0]` 은 너무 좁다. 우리 차 기준:
 
@@ -215,6 +248,7 @@ kappa_max = tan(0.4189)/0.33 = 1.349 1/m
 ### ③ observation에 `a_base` 를 포함
 
 무엇을 보정하는지 모르면 policy가 state에서 역추론해야 한다. 낭비다.
+하이브리드에서는 **$\kappa_{\text{PP}}$ 1차원**이다 (가속 base 가 없으므로).
 
 ### ④ baseline은 sim과 real에서 **같은 코드**
 
@@ -242,25 +276,22 @@ kappa_max = tan(0.4189)/0.33 = 1.349 1/m
 
 ```python
 # rl_racing/common/base_policy.py  — sim/real 공유. ROS 의존 금지
-def pure_pp(frenet, preview, v, cfg):          # 전부 (B,) 배치
+def pure_pp(frenet, preview, v, cfg):          # 전부 (B,) 배치.  조향만 낸다
     L_d   = clamp(cfg.m_l1*v + cfg.q_l1, cfg.t_clip_min, cfg.t_clip_max)
-    eta   = lookahead_angle(frenet, preview, L_d)
+    eta   = lookahead_angle(frenet, preview, L_d)   # s + L_d 보간 (스택과 정의 다름 — 인터페이스 §2-1)
     delta = atan(2*cfg.wheelbase*sin(eta) / L_d)
-    kappa_base = tan(delta) / cfg.wheelbase
-
-    v_ref = clamp(sqrt(cfg.a_lat_max / abs(kappa_eff)), cfg.v_min, v_cap)
-    ax_base = cfg.kp_speed * (v_ref - v)
-    return kappa_base, ax_base
+    return tan(delta) / cfg.wheelbase            # kappa_PP
 
 # --- env.step ---
 o  = tracker.step(xy, yaw)                       # frenet_gpu
 pv = trk.preview(o["s"], xy, yaw)
-kappa_base, ax_base = pure_pp(o, pv, v, CFG)
+kappa_pp = pure_pp(o, pv, v, CFG)
 
-obs = concat([ego_dyn_hist, path_feat(o, pv), [kappa_base, ax_base]])
-#                                              └─ 구현 ③ a_base 포함
-d_kappa, d_ax = RESIDUAL_SCALE * policy(obs)     # 구현 ② 유계
-kappa, ax = kappa_base + d_kappa, ax_base + d_ax
+obs = concat([ego_dyn_hist, path_feat(o, pv), [kappa_pp]])
+#                                              └─ 구현 ③ base 포함 (1차원)
+out = tanh(policy(obs))                          # (B,2)
+kappa = kappa_pp + DKAPPA_BOUND * out[:, 0]      # 조향: residual
+a_x   =            A_MAX        * out[:, 1]      # 가속: 직접
 delta = atan(cfg.wheelbase * kappa)              # 결정로그 #5
 ```
 

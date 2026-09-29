@@ -2,7 +2,7 @@
 tags: [moc, interface, sim2real, residual, 규약]
 작성일: 2026-09-23
 상태: 🔒 확정분 / ⏳ 미확정분 혼재 — **학습 시작 전에 전부 🔒 여야 한다**
-갱신: 2026-09-23 (비교군 어댑터 실측 반영)
+갱신: 2026-09-29 (하이브리드 action 확정 — 가속은 base 없이 직접)
 repo: nhg0209/rl-racing
 ---
 
@@ -24,7 +24,7 @@ repo: nhg0209/rl-racing
 | | 무엇 | repo | 시점 |
 |---|---|---|---|
 | **A** 학습 전용 | Isaac Lab env, reward, randomization, curriculum, SAC 루프, 트랙 생성, Frenet projector | `rl-racing` | 지금 |
-| **B** sim·real 공유 | **π_base**, action 변환, **obs 조립**, 정규화 상수, residual bound | `rl-racing/common/` | **지금 고정** |
+| **B** sim·real 공유 | **π_base**(순수 PP, 조향만), action 변환, **obs 조립**, 정규화 상수, residual bound | `rl-racing/common/` | **지금 고정** |
 | **C** 실차 전용 | ROS 2 노드, ONNX/TensorRT, action low-pass, policy fallback | `unicorn-racing-stack` | **M6** |
 
 ```
@@ -55,7 +55,7 @@ rl-racing  ──import──▶  (없음)              학습이 ROS 에 의존
 
 ---
 
-## 2. 🔒 π_base — 순수 Pure Pursuit + 마찰원 속도
+## 2. 🔒 π_base — 순수 Pure Pursuit (**조향만**)
 
 ### 2-1. 횡방향
 
@@ -107,72 +107,43 @@ v [m/s]   L_d [m]
 > 단 ①(Controller.py)과 ②(순수 PP)를 비교할 때 **저속에서 조향의 10%** 가 이 정의 차이로
 > 남는다는 것을 리포트에 명시한다.
 
-### 2-2. 종방향 — **오프라인 속도 프로파일** (2026-09-23 실측으로 수정)
+### 2-2. 🔒 종방향 — **base 없음** (2026-09-29 확정: 하이브리드)
 
-> [!danger] 런타임 규칙 $v_{\text{ref}} = \sqrt{a_{\text{lat,max}}/|\kappa_{\text{eff}}|}$ 는 폐기했다
-> $\kappa_{\text{eff}}$ 를 "앞 창 안의 최대 $|\kappa|$" 로 잡으면 **코너가 창에 들어오는 순간
-> $v_{\text{ref}}$ 가 한 격자(10 cm)에서 뚝 떨어진다** = 계단 함수.
-> 실측: 요구 감속이 **79~156 m/s²**. 창 크기를 1~12 m 어떻게 잡아도 못 고친다.
+가속은 policy 가 **직접** 낸다. 근거는 [[Residual Policy Learning]] §채택 —
+*믿을 수 있는 base 가 있는 축만 residual 로 한다.* 종방향에는 ggv 도, 우리가 고른 숫자도 남기지 않는다.
 
-대신 **backward/forward pass** 로 트랙마다 한 번 계산해 `.npz` 에 넣는다.
-
-```
-v_allow[i] = min( sqrt(a_lat / |kappa_i|), v_max )
-반복 (폐루프라 2바퀴 이상):
-  backward  v[i] = min(v[i], sqrt(v[i+1]² + 2·a_lon·ds))     앞 코너를 위해 미리 감속
-  forward   v[i] = min(v[i], sqrt(v[i-1]² + 2·a_lon·ds))     가속도 한계
-```
-
-| 파라미터 | 값 | 근거 |
-|---|---|---|
-| $a_{\text{lat}}$ | **3.5 m/s²** | $\mu = 0.357$ 상당. 커리큘럼 주 구간에서 실현 가능 |
-| $a_{\text{lon}}$ | **3.5 m/s²** | 같은 값 하나로 통일. 실측 최대 가속은 $\mu{=}1.0$ 에서 4.88 이라 여유 있다 |
-| $k_p$ | ⏳ 미정 — $\mu{=}1.0$ 에서 튜닝 후 **고정** | μ 별로 바꾸면 "PP 가 μ 에서 무너진다"가 게인 탓이 된다 |
-
-$$a_{x,\text{base}} = k_p\,\big(v_{\text{profile}}(s) - v\big)$$
-
-```
-                 v_ref 최소  v_ref 최대  IQP 대비  요구 감속  요구 가속
-ifac_0824_…_3       2.144      8.144     0.746      3.50      3.50
-ifac_roboracer      2.058      8.091     0.820      3.50      3.50
-```
-
-**요구 감속·가속이 정확히 $a_{\text{lon}}$ 으로 묶인다 — 구성상 보장된다.**
-런타임 비용 0(조회), sim/real 동일, 파라미터 2개.
-
-> [!warning] IQP 속도 프로파일과 무엇이 다른가 — 스스로 속이지 말 것
-> 형태는 비슷해졌다. 남은 차이는 **입력의 출처**다.
-> IQP 는 `ggv.csv`(19행 전부 5.0/4.5, 미측정, **스택 스스로도 지키지 못해** slew limiter 를
-> 덧댔다)를 쓴다. 우리는 **우리가 고른 숫자 두 개**를 쓰고 그 값을 문서에 적는다.
-> 그리고 residual 이 이 프로파일을 **넘어설 수 있다** — 상한이 아니다.
-> 이 구분이 얇다는 것을 인정하고, 리포트에 그대로 쓴다.
-
-> [!note] ⏳ 속도 상한 랜덤화와의 상호작용
-> 에피소드마다 $v_{\text{cap}} \sim U(4.5, 10.5)$ 로 바뀐다. 프로파일을 $v_{\text{cap}}$ 로
-> 그냥 clip 하면 가속 구간에서 자기일관성이 약간 깨진다.
-> 에피소드 시작 때 그 cap 으로 pass 를 다시 돌리는 편이 깨끗하다 (O(N), 422점).
+> [!note] 앞서 설계한 속도 프로파일은 버리지 않았다
+> 실험 ②(순수 PP 단독)가 **달리려면 속도가 필요**해서, 비교용 규칙으로 **§7 로 옮겼다.**
+> 우리 방법(③③')에서는 쓰지 않는다.
 
 ---
 
-## 3. 🔒 Action 규약
+## 3. 🔒 Action 규약 — 하이브리드
 
-$$\kappa = \kappa_{\text{base}} + \Delta\kappa_\theta, \qquad
-a_x = a_{x,\text{base}} + \Delta a_{x,\theta}, \qquad
+$$\kappa = \underbrace{\kappa_{\text{PP}}}_{\text{base}} + \Delta\kappa_\theta, \qquad
+a_x = a_{x,\theta}\ \ (\text{base 없음}), \qquad
 \delta = \arctan(L\,\kappa)$$
 
-| | 단위 | 범위 |
-|---|---|---|
-| policy 출력 | — | $\tanh \Rightarrow [-1, 1]^2$ |
-| $\Delta\kappa_\theta$ | 1/m | $\pm 0.40$ = $\kappa_{\max}$ 의 30% ⏳ 조정 대상 |
-| $\Delta a_{x,\theta}$ | m/s² | $\pm 3.0$ ⏳ 조정 대상 |
-| 최종 $\delta$ | rad | $\pm 0.4189$ 로 clip |
+| | 단위 | 범위 | 성격 |
+|---|---|---|---|
+| policy 출력 | — | $\tanh \Rightarrow [-1, 1]^2$ | |
+| $\Delta\kappa_\theta$ | 1/m | $\pm 0.40$ = $\kappa_{\max}$ 의 30% ⏳ 조정 대상 | **residual** |
+| $a_{x,\theta}$ | m/s² | $\pm A_{\max}$ ⏳ 값 미정 (차의 실제 가감속 범위) | **직접 출력** |
+| 최종 $\delta$ | rad | $\pm 0.4189$ 로 clip | |
 
-> [!important] bound 운용
-> **넓게 시작 → 로그 보고 조인다.** `|Δ|/bound` 히스토그램과 **"bound 에 붙어있는 비율"** 을 필수 로깅.
+> [!important] 조향 bound 운용
+> **넓게 시작 → 로그 보고 조인다.** `|Δκ|/bound` 히스토그램과 **"bound 에 붙어있는 비율"** 을 필수 로깅.
 > 상한에 계속 붙어 있으면 넓히고, 20% 이내만 쓰면 조인다. → [[Residual Policy Learning]] 구현 ②
+> 가속은 residual 이 아니므로 bound 개념이 없다. 실제 제한은 VESC $v_{\text{cap}}$ 과 마찰이 한다.
+
+> [!warning] 초기화가 두 head 에서 다르다
+> - 조향 head: weight·bias 를 0 근처 → **base(PP) 그대로 출발**
+> - 가속 head: weight 만 작게, **bias 는 약한 양의 가속** → 0 이면 차가 안 움직여 progress 가 0 이다
+>   (bias 값 $a_0$ ⏳ 미정. $\mu{=}1.0$ 커리큘럼 첫 단계에서 정한다)
 
 > [!warning] ⏳ action low-pass 를 어디에 거는가 — **미정, 학습 전 확정 필수**
 > `policy 출력`에 거는 것과 `base + residual` 합에 거는 것은 **다른 시스템**이다.
+> 하이브리드에서는 조향(합)과 가속(직접)이 경로가 달라 **축마다 따로** 정해야 한다.
 > 실차에서만 걸고 sim 에서 안 걸면 전이가 깨진다. 제어 주기 측정 후 결정.
 
 ---
@@ -190,7 +161,7 @@ a_x = a_{x,\text{base}} + \Delta a_{x,\theta}, \qquad
 | 경로 표현 | [[Frenet Frame]] — $(s, d, e_\psi)$, **$d>0$ = 왼쪽** |
 | preview | 40점 × 0.5 m, **차량 좌표계** (x 전방 +, y 좌측 +) |
 | preview 내용 | $x, y, \Delta\psi, \kappa, d_{\text{left}}, d_{\text{right}}$ |
-| `a_base` 포함 | $(\kappa_{\text{base}},\, a_{x,\text{base}})$ 2차원 — 무엇을 보정하는지 알아야 한다 |
+| base 포함 | $\kappa_{\text{PP}}$ **1차원** — 무엇을 보정하는지 알아야 한다 (가속 base 는 없으므로 빠짐) |
 | 비대칭 | actor 에 $\mu$ 없음 / critic 에 $\mu$, $v_{\text{cap}}$, 실제 벽거리 포함 |
 
 ### 미확정 ⏳
@@ -266,18 +237,100 @@ B  reset 후 결정성                            max|Δdelta| 0.000e+00, max|Δ
 
 ---
 
-## 6. 실험 3종
+## 6. 실험 4종
 
-| | 대상 | 목적 |
-|---|---|---|
-| ① | `Controller.py` 단독 (보정 8겹 전부) | **실전 기준선** |
-| ② | 순수 PP 단독 (π_base) | base 가 어디서 무너지는가 |
-| ③ | 순수 PP + residual | 우리 방법 |
+| | 조향 | 속도 | 목적 |
+|---|---|---|---|
+| ① | 스택 L1 (`Controller.py`, 보정 전부) | 스택 IQP × 0.8 | **실전 기준선** |
+| ② | 순수 PP | **비교용 속도 프로파일 (§7)** | base 가 어디서 무너지는가 |
+| ③' | 순수 PP (고정) | policy | 속도를 policy 에 맡긴 효과만 |
+| ③ | 순수 PP + $\Delta\kappa$ | policy | **우리 방법** |
 
 $\mu \in \{1.0,\,0.7,\,0.5,\,0.42,\,0.35,\,0.25\}$ × 3랩. 기록: 완주 여부, 랩타임, $\max|d|$,
-벽 접촉 수, 최대 슬립비, **residual 크기 분포**.
+벽 접촉 수, 최대 슬립비, **조향 residual 크기 분포**, **학습된 속도 프로파일**.
 
-②가 빠지면 ③의 승리가 residual 덕인지 PP 가 원래 나았던 건지 갈리지 않는다.
+- ②가 빠지면 ③의 승리가 *우리 방법 덕*인지 *순수 PP 가 원래 L1 보다 나았던 것*인지 갈리지 않는다
+- ②→③ 은 **두 가지가 동시에 바뀐다** (속도 출처 + 조향 residual). ③' 가 이를 가른다:
+  **②→③' = 속도를 policy 에 맡긴 효과, ③'→③ = 조향 residual 의 효과**
+
+> [!tip] 리포트 핵심 그림 두 개
+> 1. **조향 residual 크기** vs slip angle / $\mu$ / 속도 — residual 이 *kinematic 모델이 못 표현하는 슬립 보정량* 임을 보인다
+> 2. **학습된 속도 프로파일** vs 마찰 한계 $\sqrt{\mu g/|\kappa|}$, $\mu$ 별 — policy 가 마찰에 맞춰 속도를 스스로 찾았음을 보인다
+
+---
+
+## 7. 🔒 실험 ② 전용 — 비교용 속도 프로파일
+
+> [!info] 우리 방법에는 쓰지 않는다
+> 순수 PP 단독(②)이 달리기 위한 속도 규칙이다. 하이브리드 확정 전에 종방향 base 로 설계했던 것을 옮겼다.
+> 비교용이므로 "IQP 와 같은 알고리즘"이라는 점은 **문제가 되지 않는다** — 오히려 ①과 공정하게 비교된다.
+
+### 7-1. 기각: 런타임 $v_{\text{ref}} = \sqrt{a/|\kappa_{\text{eff}}|}$
+
+$\kappa_{\text{eff}}$ 를 "앞 창 안의 최대 $|\kappa|$" 로 잡으면 **직선→코너 전환에서 속도가 절벽처럼 떨어진다.**
+원인은 $v = \sqrt{a/\kappa}$ 의 기울기가 $\kappa \to 0$ 에서 무한대라는 것 — 직선 끝의 아주 작은 곡률
+(0.04 = 반경 25 m)이 창에 들어오는 순간 속도가 폭락한다.
+
+```
+ifac_0824_mapping_3, 가장 빠른 직선 → 가장 급한 코너 (s=0.0, κ=0.761)
+    s   |kappa|  지점별  창4m     BF     IQP    창4m 요구감속   BF 요구감속
+31.38   0.003   10.08  10.08   7.61  11.66       79.1         3.50  ← 절벽 시작
+31.48   0.004   10.08   9.26   7.57  11.57       75.9         3.50
+31.88   0.004   10.08   6.79   7.38  11.20       23.9         3.50
+37.78   0.258    3.68   2.28   3.68   4.83        1.1         2.54  ← 창 규칙은 여기서 너무 느림
+41.97   0.759    2.15   2.14   2.15   2.93        0.0        −0.04
+
+창 크기   최대 낙차   요구 감속    직선 최고 v_ref
+ 1~8 m   0.86 m/s   75.9 m/s²   10.08         ← 절벽의 위치만 옮겨간다
+  12 m   0.05 m/s    1.1 m/s²    2.93         ← 절벽 대신 랩 전체가 기어간다
+```
+
+### 7-2. 채택: 오프라인 forward/backward pass + 마찰원 결합
+
+직관: **"코너 입구에서 3.68 m/s 여야 한다면, 6.6 m 앞에서는 최대 몇 m/s 까지 괜찮은가?"**
+→ $v^2 = 3.68^2 + 2 \times 3.5 \times 6.6$ → **7.73 m/s** (위 표 BF 열 s=31.18 의 7.70)
+
+```
+v_allow[i] = min( sqrt(a / |kappa_i|), v_max )
+a_lon,avail(v, κ) = a · sqrt(1 − (v²κ / a)²)                  ← 마찰원 결합
+반복 (폐루프: 가장 급한 코너가 정확히 s=0 이라 이음매를 넘는 전파가 필수):
+  backward  v[i] = min(v[i], sqrt(v[i+1]² + 2·a_lon,avail·ds))
+  forward   v[i] = min(v[i], sqrt(v[i-1]² + 2·a_lon,avail·ds))
+
+속도 추종:  a_x = k_p · (v_profile(s) − v)                     k_p ⏳ μ=1.0 에서 튜닝 후 고정
+```
+
+**파라미터는 $a = 3.5$ m/s² 하나** (반경 3.5 의 마찰원, $\mu = 0.357$ 상당). 트랙마다 `gen_track.py` 에서 1회 계산해 npz 에 넣는다.
+
+```
+                        v최소  v최대  IQP비   최대 합성가속   랩시간(추정)
+ifac_0824_mapping_3
+  독립 (a_lat,a_lon)     2.14   8.14  0.746      4.95        10.73 s   ← 자기 가정 3.5 위반
+  ★ 마찰원 결합           2.14   7.69  0.692      3.52        11.48 s
+  IQP                    2.92  12.28  1.000                   8.06 s
+  스택 실제 (0.8×IQP)     2.34   9.82  0.800                  10.07 s   ← 비교군 ①
+ifac_roboracer
+  ★ 마찰원 결합           2.06   7.54  0.761      3.53        10.84 s
+  스택 실제 (0.8×IQP)     2.06   8.54  0.800                  10.42 s
+```
+
+### 7-3. 스택 IQP 와의 관계 — 코드로 확인
+
+스택 `gb_optimizer/trajectory_optimizer.py:433` → `vel_planner.py:calc_vel_profile` 을 읽었다.
+
+```
+시작:     vx_profile = √(ay_max · radii)                (255행)   ← 7-2 의 v_allow 와 같다
+본체:     __solver_fb_closed  (forward/backward)                  ← 7-2 와 같다
+마찰결합:  radicand = 1 − (ay_used/ay_max)^dyn_model_exp  (606행)
+          ax_avail = ax_max · radicand^(1/exp)            (609행)  ← exp=2 이면 7-2 와 같다
+```
+
+**같은 알고리즘이다.** 다른 것은 입력뿐 — 스택은 `ggv.csv`, 우리는 $a = 3.5$.
+
+> [!warning] 저장된 IQP 프로파일은 디스크의 ggv 와 맞지 않는다
+> `ggv.csv` 의 `ay_max` = 4.5 인데, `vx_planner` 가 코너($|\kappa|>0.3$)에서 암시하는
+> $v^2|\kappa|$ 는 **5.50~6.50 (중앙 6.28) m/s²** 다. 지금 디스크에 있는 ggv 로 만든 프로파일이 아니다.
+> 원인 미확인. 스택은 이걸 다시 `speed_scaling.yaml` 의 `global_limit: 0.8` 로 줄여 달린다.
 
 ---
 
