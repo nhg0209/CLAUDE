@@ -2,7 +2,7 @@
 tags: [moc, interface, sim2real, residual, 규약]
 작성일: 2026-09-23
 상태: 🔒 확정분 / ⏳ 미확정분 혼재 — **학습 시작 전에 전부 🔒 여야 한다**
-갱신: 2026-09-29 (하이브리드 action 확정 — 가속은 base 없이 직접)
+갱신: 2026-09-29 (하이브리드 action, 라인 추종 역할, d_ref 표현, trailing governor)
 repo: nhg0209/rl-racing
 ---
 
@@ -146,6 +146,21 @@ a_x = a_{x,\theta}\ \ (\text{base 없음}), \qquad
 > 하이브리드에서는 조향(합)과 가속(직접)이 경로가 달라 **축마다 따로** 정해야 한다.
 > 실차에서만 걸고 sim 에서 안 걸면 전이가 깨진다. 제어 주기 측정 후 결정.
 
+### 3-1. 🔒 trailing governor (hard cap) — 2026-09-29 확정 (#24)
+
+$$a_{x,\text{final}} = \min\big(a_{x,\theta},\; k_g\,(v_{\text{lim}} - v)\big)$$
+
+- `v_lim` 은 state_machine(간격 유지 모듈)이 준다. **solo 주행에서는 $v_{\max}$** — 사실상 꺼져 있다
+- **policy 관측에 `v_lim` 을 넣지 않는다.** policy 는 cap 의 존재를 모른다 → 학습은 solo 그대로
+- `min` 이라 policy 가 코너 앞에서 스스로 줄인 속도는 그대로 존중된다
+- **B(공유 코드)다** — 실차 배포 노드와 sim 의 trailing 평가가 같은 함수를 쓴다
+
+> [!warning] 제동 세기 $k_g$ 는 손으로 고른 값이다
+> 저마찰($\mu{=}0.25$ → 최대 감속 2.45 m/s²)에서 그 이상을 요구하면 미끄러진다.
+> trailing 은 state_machine 영역이라 수용한다. 전환 순간 $a_x$ 가 튀지 않도록 **램프**를 둔다
+> (스택이 같은 전환에서 +1.7 m/s 계단, 86.8 m/s² 를 겪었다).
+> 저마찰 trailing 이 문제되면 `v_lim` 을 actor 관측으로 올린다 — 입력 차원이 바뀌어 재학습.
+
 ---
 
 ## 4. ⏳ Observation 규약 — **미확정. 최우선 과제**
@@ -158,9 +173,12 @@ a_x = a_{x,\theta}\ \ (\text{base 없음}), \qquad
 
 | 항목 | 값 |
 |---|---|
-| 경로 표현 | [[Frenet Frame]] — $(s, d, e_\psi)$, **$d>0$ = 왼쪽** |
+| 경로 표현 | [[Frenet Frame]] — $(s, d, e_\psi)$, **$d>0$ = 왼쪽**. projector 는 **global raceline 에 고정** |
+| 추종 대상 | **$d_{\text{ref}}(s)$** — raceline 기준 횡 오프셋 (스택 local waypoint `d_m` 과 같은 표현, `Controller.py:630`). 추월 경로·경로 교체를 전부 이걸로 표현 (#22) |
+| 추종 오차 | **$e_d = d - d_{\text{ref}}(s)$** — 관측과 보상이 같은 정의를 쓴다 |
 | preview | 40점 × 0.5 m, **차량 좌표계** (x 전방 +, y 좌측 +) |
-| preview 내용 | $x, y, \Delta\psi, \kappa, d_{\text{left}}, d_{\text{right}}$ |
+| preview 내용 | $x, y, \Delta\psi, \kappa, d_{\text{left}}, d_{\text{right}}$ **+ $d_{\text{ref}}$** |
+| 넣지 않는 것 | 상대차 정보, `v_lim` (trailing 은 governor 가 처리, §3-1), `vx_planner` |
 | base 포함 | $\kappa_{\text{PP}}$ **1차원** — 무엇을 보정하는지 알아야 한다 (가속 base 는 없으므로 빠짐) |
 | 비대칭 | actor 에 $\mu$ 없음 / critic 에 $\mu$, $v_{\text{cap}}$, 실제 벽거리 포함 |
 
@@ -247,15 +265,21 @@ B  reset 후 결정성                            max|Δdelta| 0.000e+00, max|Δ
 | ③ | 순수 PP + $\Delta\kappa$ | policy | **우리 방법** |
 
 $\mu \in \{1.0,\,0.7,\,0.5,\,0.42,\,0.35,\,0.25\}$ × 3랩. 기록: 완주 여부, 랩타임, $\max|d|$,
-벽 접촉 수, 최대 슬립비, **조향 residual 크기 분포**, **학습된 속도 프로파일**.
+벽 접촉 수, 최대 슬립비, **추종 오차(RMS·최대 $e_d$)**, **조향 residual 크기 분포**, **학습된 속도 프로파일**.
+
+> [!important] 성공 기준은 두 축이다 — 랩타임과 추종 오차
+> 컨트롤러는 라인 추종기다(#22). ①(`Controller.py`)도 라인 추종기라 **같은 두 축으로 공정하게** 비교된다.
+> 우리 방법은 $w_d$ 스윕으로 **랩타임–RMS $e_d$ 곡선**을 만들고, ①은 그 평면의 점 하나다 →
+> *"같은 정밀도에서 더 빠르다"* 또는 *"같은 속도에서 더 정확하다"* 로 서술한다.
 
 - ②가 빠지면 ③의 승리가 *우리 방법 덕*인지 *순수 PP 가 원래 L1 보다 나았던 것*인지 갈리지 않는다
 - ②→③ 은 **두 가지가 동시에 바뀐다** (속도 출처 + 조향 residual). ③' 가 이를 가른다:
   **②→③' = 속도를 policy 에 맡긴 효과, ③'→③ = 조향 residual 의 효과**
 
-> [!tip] 리포트 핵심 그림 두 개
-> 1. **조향 residual 크기** vs slip angle / $\mu$ / 속도 — residual 이 *kinematic 모델이 못 표현하는 슬립 보정량* 임을 보인다
+> [!tip] 리포트 핵심 그림 세 개
+> 1. **조향 residual 크기** vs slip angle / $\mu$ / 속도 — residual 이 *라인에 붙어 있기 위한 슬립 보정량* 임을 보인다
 > 2. **학습된 속도 프로파일** vs 마찰 한계 $\sqrt{\mu g/|\kappa|}$, $\mu$ 별 — policy 가 마찰에 맞춰 속도를 스스로 찾았음을 보인다
+> 3. **랩타임 vs RMS $e_d$** — 우리 방법의 곡선과 ①·② 의 점
 
 ---
 

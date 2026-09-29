@@ -160,6 +160,8 @@ Pure Pursuit은 **kinematic(무슬립) 영역에서 정확하고 한계에서 �
 
 **즉 residual 그 자체가 "kinematic bicycle 모델이 표현할 수 없는 슬립 보정량"이다.**
 
+컨트롤러가 **라인 추종기**로 정해졌으므로(#22) 더 정확히는 *"planner 가 준 라인에 붙어 있기 위해 PP 가 놓친 슬립 보정량"* 이다. 보상의 추종 항(#23)이 residual 에게 바로 이 일을 시킨다.
+
 > residual 크기를 slip angle / $\mu$ / 속도에 대해 플롯하면,
 > policy가 **물리적으로 의미 있는 것을 배웠다**는 직접적 증거가 된다.
 > E2E policy로는 이 분해가 불가능하다.
