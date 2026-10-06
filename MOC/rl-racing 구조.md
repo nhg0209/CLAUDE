@@ -210,7 +210,14 @@ residual 합성은 `common/action.py` 에서 하므로 알고리즘은 residual 
 | C3 | `42e60c1` | vehicle·track_data 분리, FrenetTrack 은 RefPath 를 받는다 |
 | C4 | `ec3e737` | 비교군 어댑터 + 리셋 회귀 테스트 |
 
-⚠️ **dev 는 아직 원격에 없다** — CLI 를 돌린 기계에 GitHub 인증이 없었다.
+✅ **main 병합 완료 (2026-10-06)** — `22be25a` (`--no-ff`, C1~C4 를 묶은 병합 커밋). 병합 결과에서 pytest 70 passed.
+`dev` 도 `22be25a` 로 맞췄다.
+
+> [!warning] 사용자 셸 환경 — 흠 12 실재 확인
+> 첫 실행에서 시스템 pytest(`/usr/lib/python3/dist-packages`)가 잡혀 torch 가 없었고,
+> ROS 2 **Jazzy** 의 `launch_testing` pytest 플러그인이 `pytest_pycollect_makemodule` 에서 테스트 모듈을 따로 import 하며 끼어들었다.
+> 해결: venv 활성화 + `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q`.
+> ⏳ Jazzy = Ubuntu 24.04 + **Python 3.12**. 이 기계가 차량 컴퓨터(NUC)와 같은 구성이면 "3.10" 가정은 틀렸다 (규칙 자체는 보수적 하한이라 안전).
 
 | 검증 | 결과 |
 |---|---|
