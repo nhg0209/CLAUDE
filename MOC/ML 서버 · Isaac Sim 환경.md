@@ -10,6 +10,11 @@ tags: [MOC, infra, isaac-sim, tier2]
 > [[프로젝트 스택]] §11(3-Tier) 의 **Tier 2 를 실행 가능하게 만드는** 환경 문서.
 > §12-4 리스크 #2(선형 타이어 모델)의 해결 경로이기도 하다.
 
+> [!warning] 2026-10-06 — 작업공간 구성이 바뀐다
+> 아래 §4 Dockerfile · §5 `run.sh` · §6 Isaac Lab 설치는 **9월 구성**이다. 코드는 `nhg0209/rl-racing` 저장소로 옮겨지고,
+> 서버의 `~/rl-racing` 은 그 저장소의 clone 이 된다 (옛 폴더는 `~/rl-racing-old`). Isaac Lab 은 이미지에 넣는다.
+> 서버의 실제 Dockerfile 은 이 노트 §4 와 달랐다 (`OMNI_KIT_ALLOW_ROOT`, `libxt6`, `torchaudio` 없음). → [[rl-racing 구조]] §8-4
+
 > [!success] 검증 상태 — STEP 0 전 항목 통과 (2026-09-14)
 > Isaac Sim/Isaac Lab 정보는 공식 저장소에서 확인. **서버 쪽도 실측 완료.** 아래 §1 표 참조.
 
