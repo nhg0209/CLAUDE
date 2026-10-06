@@ -21,7 +21,7 @@ repo: nhg0209/rl-racing
 | # | 원칙 | 이유 |
 |---|---|---|
 | 1 | **의존은 한 방향.** `common` ← `assets`·`envs`·`algo`·`baselines`·`eval`·`scripts` | B 가 학습 코드에 끌려가면 실차에 Isaac 이 따라간다 |
-| 2 | **`common` 은 ROS·Isaac import 금지.** numpy·torch 만. Python **3.10 문법까지** | 실차(NUC/Mac)에서 같은 코드가 돈다. NUC 에 Ubuntu 22.04 + ROS 2 Humble 이면 3.10 ⏳ |
+| 2 | **`common` 은 ROS·Isaac import 금지.** numpy·torch 만. Python **3.10 문법까지** | 실차(NUC/Mac)에서 같은 코드가 돈다. 차량 컴퓨터의 Python 버전은 **모른다** — 3.10 은 "어느 쪽이든 돌게" 잡은 안전한 하한 |
 | 3 | **스펙은 코드 한 곳.** 차량 상수·obs 순서/정규화·action 규약·npz 스키마 | 두 곳에 있으면 언젠가 어긋나고, 그게 reality gap 이다 |
 | 4 | **볼트는 노트만.** 코드는 전부 여기 | 사용자 요청 (#19) |
 
@@ -141,7 +141,8 @@ export 할 때 policy 파일 메타데이터에 **`spec_hash`**(obs 스펙 + act
 - **TensorRT 불필요.** policy(2×256 MLP)는 CPU 추론으로 충분하다
 - **B 는 torch 로 쓰고 실차도 torch CPU 로 같은 코드를 돈다** — 구현이 물리적으로 한 벌
 - 배포 형태(torch 직접 vs ONNX Runtime)는 **M6 에 결정.** 지금은 B 를 순수 함수로, 가능한 한 ONNX export 가 되는 형태로 써 두면 둘 다 열려 있다
-- ⏳ 확인 필요: 차량 컴퓨터의 **OS · ROS 2 배포판 · Python 버전**. NUC + Ubuntu 22.04 + Humble 이면 3.10.
+- ⏳ 확인 필요: 차량 컴퓨터의 **OS · ROS 2 배포판 · Python 버전** — **현재 모른다** (2026-10-06 사용자 확인).
+  작업 PC(CLI 를 돌린 기계, ROS 2 Jazzy · Ubuntu 24.04 · Python 3.12)와는 **다른 구성**이다. 작업 PC 기준으로 추정하지 않는다.
   **Mac 이면 ROS 2 를 어떻게 돌리는지**(네이티브 / Docker·VM)가 배포 형태를 바꾼다
 
 ---
@@ -217,7 +218,7 @@ residual 합성은 `common/action.py` 에서 하므로 알고리즘은 residual 
 > 첫 실행에서 시스템 pytest(`/usr/lib/python3/dist-packages`)가 잡혀 torch 가 없었고,
 > ROS 2 **Jazzy** 의 `launch_testing` pytest 플러그인이 `pytest_pycollect_makemodule` 에서 테스트 모듈을 따로 import 하며 끼어들었다.
 > 해결: venv 활성화 + `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q`.
-> ⏳ Jazzy = Ubuntu 24.04 + **Python 3.12**. 이 기계가 차량 컴퓨터(NUC)와 같은 구성이면 "3.10" 가정은 틀렸다 (규칙 자체는 보수적 하한이라 안전).
+> 이 기계는 **작업 PC** 다 (ROS 2 Jazzy · Ubuntu 24.04 · Python 3.12). 차량 컴퓨터와는 다른 구성이고, 차량 컴퓨터 설정은 아직 모른다.
 
 | 검증 | 결과 |
 |---|---|
