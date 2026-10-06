@@ -198,15 +198,47 @@ residual 합성은 `common/action.py` 에서 하므로 알고리즘은 residual 
 
 - **브랜치**: `main` 은 빈 init 커밋만 두고, 작업은 **`dev`** 에서 한다. 단계가 검증되고 **사용자가 확인한 뒤** `main` 으로 합친다
 - **1차 이전은 Claude Code CLI 로 수행**한다 (이 원격 세션이 아니라). 커밋 C1 골격 → C2 복사 → C3 구조 변경 → C4 비교군
-- **이전 중 발견한 흠은 고치지 않고 보고만** 한다. 이전 완료 후 사용자에게 다시 묻는다. 현재 알려진 것:
+- **이전 중 발견한 흠은 고치지 않고 보고만** 한다. 이전 완료 후 사용자에게 다시 묻는다.
 
-| # | 흠 | 출처 |
+### 8-1. 1차 이전 결과 (2026-10-06, CLI 보고)
+
+| | 해시 | 내용 |
 |---|---|---|
-| 1 | frenet docstring 의 *"전역 argmin 은 쓸 수 없다"* — 실측으로는 통과했다 (낡은 문장) | frenet 코드 설명 ① |
-| 2 | `preview_horizon` 이 0.5 m 과장 (20.0 표시, 마지막 점 19.49 m) | ② |
-| 3 | 외적이 정확히 0 이면 `d = 0` | ③ |
-| 4 | preview 설정이 트랙 데이터(npz)에 들어 있다 — 관측 설계 소관 (3차 `observation.py`) | 1차 설명 |
-| 5 | wheelbase 0.33 (스택) vs 0.3302 (`lf+lr`, dynamics.yaml) — 2차 URDF 이전 때 결정 | 인터페이스 §1 |
+| init | `01770fa` | main — 빈 커밋 (**원격에 있음**) |
+| C1 | `9f72c17` | 골격 + common 경계 테스트 |
+| C2 | `1182484` | 복사 — frenet·리포트·맵 + 판정 테스트 |
+| C3 | `42e60c1` | vehicle·track_data 분리, FrenetTrack 은 RefPath 를 받는다 |
+| C4 | `ec3e737` | 비교군 어댑터 + 리셋 회귀 테스트 |
+
+⚠️ **dev 는 아직 원격에 없다** — CLI 를 돌린 기계에 GitHub 인증이 없었다.
+
+| 검증 | 결과 |
+|---|---|
+| 0단계 기준선 | 노트 수치와 일치 (npz 24,302 B, 3a 3.25e-05, adapter 2.911 m/s 등) |
+| frenet 리포트 (C2·C3) | 처리량 제외 **바이트 동일** |
+| npz 비트 비교 (C3) | 두 맵 16 키 전부 `array_equal` + dtype 일치. 추가 키 `schema_version` 뿐 |
+| adapter 리포트 (C4) | raw diff **비어 있음** |
+| pytest | 70 passed (스택 있음) / 61 passed + 9 skipped (없음). 커밋별 worktree 재검증 |
+| 돌연변이 3개 | `heading_error_integral` 제거는 **정적 검사(4번)만** 잡는다 — KI=0 이라 동작 테스트로는 안 보인다. 완전성 테스트의 필요성이 실측으로 확인됨 |
+
+지시 이탈 3개 (전부 수용): frenet docstring 사용 예 3줄, `local_window` 의 입력 접근자, ruff per-file-ignores.
+
+### 8-2. 흠 목록 — 12개 (⏳ 사용자 결정 대기)
+
+| # | 흠 | 성격 |
+|---|---|---|
+| 1 | frenet docstring "전역 argmin 은 쓸 수 없다" — 낡은 문장 | 문서 |
+| 2 | `preview_horizon` 0.5 m 과장 | 값 |
+| 3 | 외적 = 0 이면 `d = 0` — **크기까지 0** (u 가 clamp 된 경우 실제 거리 ≠ 0 이어도). 합성 정사각 트랙에서 0.5 m 이탈점이 `d = 0`, `at_edge = False`. 실제 두 맵 0 건 | **B 정확성** |
+| 4 | preview 설정이 트랙 데이터(npz)에 있음 | 설계 → 3차 |
+| 5 | wheelbase 0.33 vs 0.3302 | 설계 → 2차 |
+| 6 | 끝점 중복 없는 입력에서 lap/ds 오류 → `from_arrays` 가 `validate()` 에서 ValueError (ds 0.24% 오차 > 문턱 0.1%). **실차 입구가 닫혀 있다** (조용히 틀리지는 않음) | **B 정확성** |
+| 7 | npz float32 스칼라 때문에 sim·실차의 ds·lap 이 3e-8 다르다 | 설계 → spec_hash (3차) |
+| 8 | `cur_state_speed` 가 `__init__` 에도 리셋 목록에도 없다 | 비교군 |
+| 9 | `FrenetTracker` 의 미사용 변수 `N` | 정리 |
+| 10 | yaml 파싱에서 파일을 닫지 않음 | 정리 |
+| 11 | `save_npz` 의 `schema_version` 정책 미정 | 설계 (작음) |
+| 12 | ROS 를 source 한 셸에서 pytest 가 죽는다 | 환경 → 실차(NUC, ROS) 대비 |
 
 ---
 
