@@ -462,6 +462,36 @@ residual 합성은 `common/action.py` 에서 하므로 알고리즘은 residual 
 > [!warning] 볼트의 `urdf/racecar_physics.urdf` 는 낡은 파일이다
 > 서버 것과 다르다 — 휠 effort 1.257 / velocity 196.85 (지금 생성기는 0.629 / 600). 이전이 끝나면 지우기로 한 목록(§6)에 이미 있다.
 
+
+### 8-5. 3단계 — Isaac 스크립트 이전 (2026-10-07 설계 확정)
+
+2단계는 main `1ebee0a`, lock 작업은 `715d384` 로 병합됨. 남은 볼트 `tools/` 9개를 저장소로 옮긴다.
+
+| 옛 파일 | 새 위치 |
+|---|---|
+| `gen_racecar_urdf.py` | `rl_racing/assets/urdf_gen.py` |
+| `racecar_cfg.py` | `rl_racing/assets/racecar_cfg.py` |
+| `gen_track.py` | `rl_racing/assets/track_gen.py` + `scripts/gen_track.py` |
+| `build_racecar_usd.sh` | `scripts/build_racecar_usd.sh` |
+| `inspect_usd.py` · `usd_to_glb.py` · `export_usd_portable.py` · `measure_gpu_budget.py` | `scripts/tools/` |
+| `test_racecar_drive.py` | `scripts/tools/validate_drive.py` |
+
+**A 옮기기** (결과가 옛 스크립트와 같아야 함 — 경로·import·출력 위치·lint 예외만 바꾼다) → **B 고치기** (항목별로, 예상한 차이만 나는지 확인):
+① `track_gen` 의 npz 를 `common/track_data.RefPath` 로 (npz 에 `schema_version` 키 추가) ② `validate_drive`·`measure_gpu_budget` 의 종료 멈춤 수정
+③ `build_racecar_usd.sh` 가 flat 도 다시 만들기 ④ wheelbase 통일
+
+| 설계 결정 | 내용 |
+|---|---|
+| 컨테이너에서 `rl_racing` import | `run.sh` 가 `PYTHONPATH` 에 저장소 루트 (이미지 변경 없음 — 이미지에 설치하면 lock 대조에 걸린다) |
+| 출력 위치 | `build/assets/` (차량), `build/tracks/<맵>/` (트랙). 입력 `maps/` 와 분리 |
+| 진입점 | 로직은 `rl_racing/`, 실행은 `scripts/`. 점검 도구는 `scripts/tools/` 의 독립 스크립트 |
+| 비교 기준 | `~/rl-racing-old` 의 **최신** 산출물 (현재 이미지에서 옛 스크립트로 만든 것) |
+| 경로 문자열 문제 | USD·`config.yaml` 안에 출력 폴더의 절대경로가 적힌다. 검증할 때는 새 코드의 출력 폴더를 옛 것과 **같은 컨테이너 경로**(`/workspace/assets`)에 붙여 생성 → 바이트 비교가 그대로 가능 |
+
+**wheelbase (B-④) — 비율 유지하며 둘 다 줄인다 (사용자 결정):**
+`s = 0.33 / 0.3302 = 0.9993943065` → `lf = 0.15875·s = 0.158653846`, `lr = 0.17145·s = 0.171346154`, 합 0.330000000.
+앞뒤 무게 배분(lf : lr)은 그대로다. 출처 값(스택 `dynamics.yaml`)과 다른 이유를 코드 주석에 남긴다.
+
 ---
 
 ## 🔗 연결
