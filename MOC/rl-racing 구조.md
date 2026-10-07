@@ -385,10 +385,24 @@ residual 합성은 `common/action.py` 에서 하므로 알고리즘은 residual 
 > ml_dtypes 0.6.0  → numpy>=2.0.0 을 요구        (2026-08-13 배포)
 > → pip 가 numpy 를 2.4.6 으로 올린다. 패키지를 하나씩 설치하므로 앞의 numpy<2 가 막아 주지 못한다
 > ```
-> ~~9월에도 거의 확실히 같았다~~ → **2026-10-07 정정: 9월은 다를 가능성이 높다.** 아래 「`isaaclab.sh` 가 터미널 설정 없이 즉시 죽는다」 참고.
-> 이번 빌드에서는 `isaaclab.sh --install` 이 **아예 돌지 않았고** 대체 경로(`--no-deps` 설치 + 의존성 하나씩)만 탔다.
-> 9월에는 터미널에서 직접 실행했으므로 `--install` 이 실제로 돌았고, 그러면 isaaclab 의 `numpy<2` 요구와 onnx 가
-> **한 번에 함께** 풀려 ml_dtypes 0.5.4 · numpy 1.26 이 유지됐을 것이다.
+> **9월에도 같았을 가능성이 높다** (2026-10-07 재빌드로 확인 — 중간에 한 번 반대로 정정했다가 되돌림).
+> `TERM` 을 고쳐 공식 `isaaclab.sh --install` 이 실제로 돌게 해도(96초, 종료코드 0) **isaaclab 본체 설치가 실패**하고
+> 대체 경로로 넘어간다. 원인은 isaaclab `setup.py` 의 `flatdict==4.0.1` — 소스로만 배포돼 빌드가 필요한데,
+> 최신 setuptools 에는 `pkg_resources` 가 없어 빌드가 죽는다 (작업 PC 에서 재현: `No module named 'pkg_resources'`).
+> isaaclab 설치는 의존성을 한꺼번에 풀기 때문에 flatdict 하나 때문에 isaaclab 전체가 안 깔리고, `numpy<2` 를 지켜 줄 것이 없다.
+> `--install` 은 이 실패를 `find -exec` 안에서 해서 종료코드 0 을 낸다.
+> 9월에도 사람이 터미널에서 `--install` 을 돌렸고 같은 실패 → 대체 경로였을 것이다 (설치 스크립트에 대체 경로와 flatdict 우회가 있는 것이 그 흔적).
+> 재빌드 결과: `numpy==2.4.6`, `ml_dtypes==0.6.0`, `onnx==1.23.2`, `flatdict==4.1.0`(대체 경로가 깐 wheel 판)
+
+> [!warning] 9월의 flatdict 우회(`PIP_CONSTRAINT` 로 `setuptools<82`)는 지금 pip 에서는 효과가 없다
+> 작업 PC 실측 — flatdict 4.0.1 빌드:
+> | pip | 방법 | 결과 |
+> |---|---|---|
+> | 26.2 | `PIP_CONSTRAINT=setuptools<82` | ❌ 같은 `pkg_resources` 오류 (새 pip 은 일반 constraint 를 빌드 환경에 적용하지 않는다) |
+> | 26.2 | `PIP_BUILD_CONSTRAINT=setuptools<82` | ✅ 빌드됨 |
+> | 24.0 | `PIP_CONSTRAINT=setuptools<82` | ✅ 빌드됨 |
+> → 공식 설치를 성공시키려면(= Isaac Lab 이 의도한 `numpy<2` 환경) `--install` 단계에 `PIP_BUILD_CONSTRAINT` 를 걸면 된다.
+> 9월과 다른 환경이 되므로 **지금 검증을 끝낸 뒤 변수 하나만 바꾸는 별도 단계**로 한다.
 >
 > 결정 (⏳): 검증은 **이대로** 한다 (9월과 같은 조건). `numpy<2` 로 맞출지는 버전 고정 목록을 만들 때
 > **변수 하나만 바꾸는 별도 단계**로 판단한다 — 그때는 `onnx`/`ml_dtypes` 상한도 같이 걸어야 한다.
