@@ -40,7 +40,7 @@ rl-racing  ──import──▶  (없음)              학습이 ROS 에 의존
 
 | 기호 | 값 | 출처 | 비고 |
 |---|---|---|---|
-| $L$ wheelbase | **0.33 m** | `vehicle_config.yaml: wheelbase` | ⚠️ URDF 는 $l_f+l_r = 0.3302$. **0.33 으로 통일**하고 URDF 를 맞춘다 |
+| $L$ wheelbase | **0.33 m** | `vehicle_config.yaml: wheelbase` | ✅ URDF 도 0.33 (2026-10-12 통일. $l_f, l_r$ 은 비율 유지로 계산) |
 | $\delta_{\max}$ | **0.4189 rad** (24°) | URDF / `racecar_cfg.py` | |
 | $\kappa_{\max}$ | **1.349 1/m** | $\tan(\delta_{\max})/L$ | residual bound 의 기준 |
 | $v_{\max}$ | **10.078 m/s** | `speed_max 46500 / speed_to_erpm_gain 4614` | ERPM 2배 상향 반영값 |
@@ -52,6 +52,9 @@ rl-racing  ──import──▶  (없음)              학습이 ROS 에 의존
 > 0.2 mm 지만 **두 벌의 값이 존재하는 것 자체가 위험**하다.
 > $\delta = \arctan(L\kappa)$ 가 sim 과 real 에서 달라진다.
 > → `rl_racing/common/vehicle.py` 하나에서 읽고, URDF 생성기도 거기서 읽게 한다.
+>
+> **✅ 해결 (2026-10-12, 3단계 B2):** wheelbase 는 `vehicle.py` 의 0.33 하나. $l_f, l_r$ 은 스택 `dynamics.yaml` 의 비율을 유지하도록
+> wheelbase 에서 **계산되는 값**($l_f = 0.158654$, $l_r = 0.171346$)이고, URDF 생성기가 이것을 읽는다 — 두 벌이 생길 수 없다.
 
 ---
 
