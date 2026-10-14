@@ -629,6 +629,12 @@ eval/recorder --> build/runs/<time>_<controller>_<map>/
 3초 직진 주행 mp4 2개, 시간(기동·물리 step·캡처 프레임)과 메모리(단계별 장치 사용량, 자기 프로세스는 컨테이너 PID 차이로 측정불가일 가능성),
 30초 hold 동안 `gpu status -d`. 자동 판정: 사진이 비어 있지 않은가 · mp4 프레임 수 · 차가 움직였는가. Isaac Lab API 는 v2.3.2 소스에서 확인하고 `파일:행` 을 주석에.
 
+**0단계 결과 (2026-10-14): 렌더 불가 — 드라이버 595 와 Isaac Sim 5.1 의 알려진 비호환.** `render_check.py`(dev, 601줄)와 Isaac Lab 공식 튜토리얼
+`run_usd_camera.py` 가 같은 곳(`librtx.scenedb.plugin.so`, RTX 렌더 엔진 생성)에서 죽었다. 근거·해결책은 [[ML 서버 · Isaac Sim 환경]] §7.
+headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 바뀌면 그대로 다시 돌려 확인하는 용도로 남긴다.
+⏳ 제안 (사용자 결정 대기): 영상을 Isaac 렌더에서 떼어 **기록한 자세로 다시 그리기** — 2D 영상(계획대로) + 3D 다시보기(GLB + 로그, 브라우저).
+서버 관리자에게 R580 드라이버를 요청하는 것은 병행.
+
 ---
 
 ## 🔗 연결

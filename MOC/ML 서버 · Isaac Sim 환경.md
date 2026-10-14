@@ -388,6 +388,25 @@ cd IsaacLab
 
 ## 7. 시각화 — 스트리밍은 불가능, 영상 녹화로
 
+> [!danger] 2026-10-14 — 이 서버에서는 Isaac **렌더(카메라·영상)가 안 된다**. 원인은 GPU 가 아니라 **드라이버 계열(595)**
+> 프레임워크 0단계(`scripts/tools/render_check.py`)에서 `--enable_cameras` 로 RTX 렌더러를 켜는 순간
+> Kit 이 `librtx.scenedb.plugin.so` 에서 죽었다 (→ `carbOnPluginStartup` → `createHydraEngine`). **Isaac Lab 공식 튜토리얼
+> `run_usd_camera.py` 를 고치지 않고 돌려도 같은 스택**이라 우리 코드와 무관하다. 환경: Isaac Sim 5.1.0, RTX PRO 6000 Blackwell, 드라이버 **595.84**.
+> - CLI 는 "Blackwell 미검증" 이라 했지만 틀렸다 — RTX PRO 6000 Blackwell 은 Isaac Sim 5.1 요구사항의 **지원 GPU 목록에 있다**.
+>   5.1 이 검증한 Linux 드라이버는 **580.65.06** 이다
+> - 같은 크래시가 **595 계열 드라이버 + Isaac Sim 5.1** 에서 여러 GPU(RTX PRO 5000 Blackwell, 5090, 5070 Ti, 4090)로 보고됐다.
+>   NVIDIA 담당자가 "이 드라이버는 Isaac Sim 5.1.0(Kit 107.3.3)과 호환되지 않는다" 고 답했고, **R580 으로 내려서 해결**됐다 (보고자 확인, 다른 사용자 580.159.03-open 으로 재확인).
+>   셰이더 캐시 삭제·렌더 모드 변경·CUDA interop 끄기·Docker 는 효과가 없었다는 보고도 있다 → **설정으로 피할 방법은 알려진 것이 없다**
+> - Blackwell 은 **open 커널 모듈** 드라이버가 필요하다 (580 proprietary 로는 GPU 를 못 잡았다는 보고)
+> - 드라이버는 호스트 커널 모듈이라 컨테이너 안에서 바꿀 수 없다 → **서버 관리자 결정** (다른 사용자에게도 영향)
+> - **영향 범위**: 물리만 도는 headless 실행(`validate_drive`, 학습)은 정상이다 — Isaac Lab 은 카메라를 켜지 않으면 RTX 렌더 엔진을 만들지 않는다.
+>   우리 RL 은 상태 관측이고, 나중의 LiDAR 도 RTX 가 아니라 `RayCaster`(Warp 메시 레이캐스트)라 **학습은 막히지 않는다**. 막힌 것은 Isaac 이 그린 영상뿐이다
+> - 드라이버가 바뀌면 `verify_env.sh` 로 **물리 기준값을 다시 확인**한다 (GPU PhysX 결과가 드라이버에 따라 달라질 수 있다)
+>
+> 출처: [IsaacSim #619](https://github.com/isaac-sim/IsaacSim/issues/619) (NVIDIA 답변·R580 해결) · [IsaacSim #687](https://github.com/isaac-sim/IsaacSim/issues/687) ·
+> [Isaac Sim 5.1.0 요구사항](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html) ·
+> [포럼: RTX PRO 6000 + 595](https://forums.developer.nvidia.com/t/isaac-sim-5-1-0-crashes-shortly-after-startup-on-windows-server-2025-with-rtx-pro-6000-blackwell/370054)
+
 `ML_SERVER_USER.md`: *"다른 PC에서 이 서버의 컨테이너로 접속 → 안 됨"*
 
 Isaac Sim WebRTC 스트리밍은 **외부 → 컨테이너 inbound** 이고 **UDP** 를 쓴다.
@@ -396,7 +415,7 @@ Isaac Sim WebRTC 스트리밍은 **외부 → 컨테이너 inbound** 이고 **UD
 | 용도 | 방법 | 가능? |
 |---|---|---|
 | 학습 | `--headless` | ✅ GUI 불필요 |
-| 주행 확인 | `--video --video_length 200 --video_interval 2000` → `scp` | ✅ **권장** |
+| 주행 확인 | `--video --video_length 200 --video_interval 2000` → `scp` | ❌ **지금은 불가** (위 2026-10-14 경고 — 드라이버 595) |
 | 학습 곡선 | `tensorboard --port 6006 --bind_all` + `ssh -L 6006:localhost:6006` | ✅ TCP 라 터널됨 |
 | 실시간 GUI | WebRTC 스트리밍 | ❌ |
 | 최후 수단 | `docker context use default` + 포트 공개 | ⚠️ 이름에 `$USER`, `-u $(id -u):$(id -g)` 필수 |
