@@ -684,6 +684,19 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   (조향 서보 stiffness 8 N·m/rad 로 낮다 — 0.06 rad 만 덜 꺾여도 대부분 설명된다)
 → 추측하지 않고 진단: 바퀴 접지력(접촉 센서)·PhysX 실제 파라미터를 읽어 **토크가 어디서 새는지**(관절 vs 차체), **실제 마찰계수 Fx/Fz**, 같은 토크 법칙으로 `validate_drive` 재현, 조향 명령 vs 실제
 
+**1-다 3D 다시보기 — 브라우저 뷰어를 먼저 만듦 (2026-10-15):**
+- 계기: 3차 실행 장면을 영상으로 볼 수 있느냐는 질문. **`check_env.py` 는 기록을 남기지 않는다** (Recorder 를 쓰지 않음) → 그 장면은 다시 볼 수 없다.
+  같은 조건을 `drive.py` 로 다시 돌려야 기록(`build/runs/<시각>_<제어기>_<맵>/`)이 생긴다
+- 뷰어: [rl-racing 주행 다시보기](https://claude.ai/artifact/GrtUR1NkjGLDcsJwDLfapT) (비공개 artifact). `steps.npz` · `meta.json` · `summary.json` 을 골라 열면 재생,
+  내장되지 않은 맵은 `track_<맵>.npz` 도 같이. 파일은 브라우저 안에서만 읽고 올리지 않는다. 내장 트랙: mapping_3 · roboracer
+- 처음 계획(링크별 GLB)과 다른 점: GLB 대신 **기록의 링크 7개 자세(`link_pose_w`)에 차체 상자·바퀴 원기둥을 붙여** 그린다 (치수는 `urdf_gen.py` PARAMS).
+  `link_pose_w` 가 없으면 `pos_xy`·`yaw`·조향으로 근사
+- 표시만 바꾸는 것 둘: ① flat 은 모든 env 가 같은 원점에서 출발해 겹치므로 **그림에서만** 옆으로 0.6 m 씩 띄운다 (끌 수 있음, 계기판 위치는 원래 값)
+  ② 12점 벽 여유(차 외곽 12점에서 벽까지 거리의 최솟값)가 0.01 m 이하인 step 은 차체를 빨갛게 — env.py 의 접촉 판정 기준과 같은 값
+- 확인한 것: 실제 `Recorder` 로 쓴 npz(무압축·압축, int64·bool·0차원 문자열 포함)를 읽은 값이 numpy 와 일치. headless Chromium 에서 불러오기·재생·카메라 3종·
+  밝은/어두운 테마·폰 폭·오류 메시지 확인. **기록 형식(`recorder.py` docstring 의 스키마)이 바뀌면 뷰어도 같이 고쳐야 한다**
+- 1-나(2D mp4)는 여전히 필요 — 보고서·발표에 넣을 영상 파일은 이 뷰어로 만들 수 없다 (artifact 는 파일을 내려받게 할 수 없음)
+
 ---
 
 ## 🔗 연결
