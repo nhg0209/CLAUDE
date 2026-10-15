@@ -687,7 +687,7 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 **1-다 3D 다시보기 — 브라우저 뷰어를 먼저 만듦 (2026-10-15):**
 - 계기: 3차 실행 장면을 영상으로 볼 수 있느냐는 질문. **`check_env.py` 는 기록을 남기지 않는다** (Recorder 를 쓰지 않음) → 그 장면은 다시 볼 수 없다.
   같은 조건을 `drive.py` 로 다시 돌려야 기록(`build/runs/<시각>_<제어기>_<맵>/`)이 생긴다
-- 뷰어: [rl-racing 주행 다시보기](https://claude.ai/artifact/GrtUR1NkjGLDcsJwDLfapT) (비공개 artifact). `steps.npz` · `meta.json` · `summary.json` 을 골라 열면 재생,
+- 뷰어: rl-racing 주행 다시보기 (비공개 artifact — **2026-10-15 사용자 요청으로 삭제, 아래 콘솔로 대체**). `steps.npz` · `meta.json` · `summary.json` 을 골라 열면 재생,
   내장되지 않은 맵은 `track_<맵>.npz` 도 같이. 파일은 브라우저 안에서만 읽고 올리지 않는다. 내장 트랙: mapping_3 · roboracer
 - 처음 계획(링크별 GLB)과 다른 점: GLB 대신 **기록의 링크 7개 자세(`link_pose_w`)에 차체 상자·바퀴 원기둥을 붙여** 그린다 (치수는 `urdf_gen.py` PARAMS).
   `link_pose_w` 가 없으면 `pos_xy`·`yaw`·조향으로 근사
@@ -708,7 +708,7 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - 화면: 기록 목록 | 3D | env·값 표 | 시간축 그래프(기록된 배열 아무거나, 바퀴는 앞 실선·뒤 점선). 값 표·그래프는 기록 필드를 일반적으로 다뤄서
   env.py 에 필드가 생기면(예: 4차의 `wheel_contact_force_b`) 콘솔을 고치지 않아도 나온다
 - 확인: `tests/test_console.py` 23개 + headless Chromium 으로 기능 점검. **실제 서버 기록으로는 아직 안 열어 봤다**
-- 아티팩트 뷰어는 콘솔이 dev 에 들어가면 지울지 사용자에게 묻기
+- 아티팩트 뷰어는 사용자 요청으로 삭제 (2026-10-15). dev 병합은 사용자가 직접 (`git merge --ff-only origin/console`)
 
 ---
 
