@@ -754,6 +754,21 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   구성: δ 명령 → 순수 지연 → (속도 한계 3.2 rad/s 로 포화되는 1차 지연 τ) → Ackermann → 강한 PhysX 경첩. 지금 설정의 시간 응답은 diag 계단 실험으로 재서 비교.
   **센터 잠김은 8차, 소프트웨어 결합** (앞뒤 축 평균 속도 차이에 따른 결합 토크, 200 Hz, 안정 한계 계산 포함)
 
+**차량·sim 파라미터 YAML 통합 (2026-10-16 결정, 9차 — 센터 잠김 다음):**
+- 계기: 사용자 제안. 지금 파라미터가 `common/vehicle.py`·`urdf_gen.py PARAMS`·`racecar_cfg.py`·`env_cfg.py` 네 곳에 흩어져 있고,
+  같은 값이 두 번 적힌 곳이 있다(조향 한계 0.4189·조향 속도 3.2·서보 토크 5.0·바퀴 반지름 0.0508 이 racecar_cfg 와 PARAMS/VEHICLE 양쪽,
+  바퀴 토크 0.629 는 PARAMS 로 계산되는 값을 손으로 다시 적음) — 원칙 3 위반
+- 결정: **`config/car.yaml` 하나, 섹션 셋** — `real`(실차의 물리적 사실, sim·real 공유) / `sim`(시뮬레이터 모델링 값) / `randomization`(학습용 범위).
+  **PyYAML 을 의존성으로 추가**(컨테이너·실차 ROS 에는 이미 있음, 작업 PC venv 에만 설치). 순서는 7차(서보) → 8차(센터 잠김) → **9차(통합)**
+- 규칙(9차 프롬프트에 넣을 것):
+  1. `real` 값은 value·unit·status·source — status 는 measured / datasheet / stack / cad / estimate / unmeasured → "아직 안 잰 실차 값" 목록을 자동으로
+  2. 파생값(lf·lr, 최대 곡률, Ackermann 경첩 한계, 바퀴 토크 한계)은 YAML 에 넣지 않고 코드가 계산 — 독립 입력값만
+  3. 스택 YAML 을 복사하지 않는다 — 출처만 적고, `UNICORN_STACK` 이 있으면 스택 파일과 대조하는 테스트
+  4. 실행마다 실제로 쓴 값 전체를 `meta.json` 에 — 콘솔도 차체 치수를 거기서 읽게
+  5. 실행 시 덮어쓰기는 한 방식(`--set real.steering.delay=0.03`) — 7차의 `--steer-*` 인자도 여기로
+  6. 숫자는 바꾸지 않는 정리 — URDF md5 그대로, PhysX 에 들어간 값 그대로, check_env 결과 그대로인지로 확인
+- 8차(센터 잠김)에서 새로 생기는 결합 강도 같은 값은 한 곳(env_cfg)에 출처 주석과 함께 모아 두게 해서 9차 이동을 쉽게
+
 **1-다 3D 다시보기 — 브라우저 뷰어를 먼저 만듦 (2026-10-15):**
 - 계기: 3차 실행 장면을 영상으로 볼 수 있느냐는 질문. **`check_env.py` 는 기록을 남기지 않는다** (Recorder 를 쓰지 않음) → 그 장면은 다시 볼 수 없다.
   같은 조건을 `drive.py` 로 다시 돌려야 기록(`build/runs/<시각>_<제어기>_<맵>/`)이 생긴다
