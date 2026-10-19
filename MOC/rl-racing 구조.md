@@ -921,6 +921,18 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 구현 전 확인할 것: (가) PhysX 강성이 접촉점 하나당인지 — 원기둥 접촉점 수에 따라 바퀴 하나의 실효 강성이 달라질 수 있어 sim 하중-침하 시험으로 보정 필요
     (나) `_apply_mu`(env.py:485-490)가 실행 중 재질을 다시 쓸 때 compliant 값이 유지되는지 — Isaac Lab 은 compliant 값을 USD 재질 속성으로 쓴다(physics_materials.py, PhysxMaterialAPI)
     (다) 어느 재질에 거나(지면 vs 바퀴 — 지금 바퀴엔 결합된 재질이 없음)와 두 재질이 만날 때 합치는 규칙 (라) 실측 전 임시값 (마) 기존 검증 전부 재실행
+- **결정 (2026-10-19, 사용자): 접촉 강성 = 타이어 세로 강성 k_t 만.** 이유: 실차 서스펜션을 단단하게 설정해 위아래로 거의 안 움직인다.
+  검토: 직렬 등가 k_eq = k_t·k_s/(k_t+k_s) 는 k_s ≫ k_t 이면 k_t 에 수렴 (k_s = 10·k_t 이면 k_eq = 0.91·k_t) → 타당. 서스펜션이 정말 그만큼 단단한지는 측정 때 같이 보면 된다
+- **재질(material) 정리 — PhysX 헤더 `PxMaterial.h`(NVIDIA-Omniverse/PhysX main, 공개 최신판 — Isaac Sim 5.1 의 PhysX 와 판이 다를 수 있어 sim 확인 필요):**
+  - 재질 = 충돌 모양(shape)마다 붙는 접촉 성질: 정마찰·동마찰·반발계수·감쇠·합치는 방식(combine mode)
+  - **compliant contact 는 반발계수 칸을 음수로 쓰는 것**이다: "If a negative value is provided it is interpreted as stiffness term for an implicit spring simulated at
+    the contact site, with the spring positional error defined by the contact separation value". 감쇠(damping)는 따로 있고 compliant 일 때만 쓰인다
+  - 두 재질이 만나면: 마찰·반발은 두 재질의 합치는 방식 중 큰 것(AVERAGE < MIN < MULTIPLY < MAX)을 쓴다. 단 **compliant 와 강체가 만나면 합치는 방식과 무관하게 compliant 쪽 값**을 쓴다 (감쇠도 같음)
+  - `eCOMPLIANT_ACCELERATION_SPRING` 플래그를 켜면 강성이 질량과 무관한 가속도 스프링이 된다 — 실측 N/m 를 넣으려면 끈 상태(기본)
+  - Isaac Lab 은 `RigidBodyMaterialCfg.compliant_contact_stiffness·damping` 을 USD 재질 속성(PhysxMaterialAPI)으로 쓴다(physics_materials.py). 실행 중 env 별 재질은
+    PhysX tensor API `get/set_material_properties` 의 [정마찰, 동마찰, 반발계수] 세 칸 — **감쇠 칸은 없다**
+  - 지금 상태: 지면 재질 = 정·동 1.0, 반발 0, 마찰 합치기 multiply (USD). 차 쪽 모양(차체 상자·바퀴 4)에는 USD 재질이 없고, `_apply_mu` 가 tensor API 로 마찰만 바꾼다(반발 칸은 읽은 값 그대로 되돌려 씀)
+  - ⏳ 결정 대기 (협업 규칙 1단계로 설명): compliant 를 지면 재질에 걸지 / 바퀴 재질에 걸지
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
