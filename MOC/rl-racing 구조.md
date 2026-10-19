@@ -1021,6 +1021,25 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - 사용자 질문: PhysX Vehicles 는 어디 쓰이나, Isaac 차량 RL 은 어떻게 하나 → PhysX Vehicles 는 게임 엔진(Unity·UE4)·CARLA 등 실시간 단일 차량용,
   Isaac 차량 RL 의 주류는 articulation + PhysX 강체 접촉 + DR (Wheeled Lab 코드 확인 — 타이어 모델 없이 drifting zero-shot 주장). PhysX Vehicles 를 Isaac Lab GPU RL 에 쓴 사례 못 찾음 ([[질문 로그]] 2026-10-19).
   ⏳ 이 정보로 결정(2번) 유지 여부 재확인 대기 — V0 는 어느 쪽이든 정보가 됨
+- **사용자 (2026-10-19): "(나)와 (다) 중 하나가 괜찮을 것 같다"** → 2번(PhysX Vehicles)은 후보에서 빠짐, V0 불필요. 두 안 상세 설명 (협업 규칙 1단계, 추천 없음):
+
+  ![](../attachments/tire/options_na_da.png)
+
+  | | (나) 지금 구조 + DR 강화 (Wheeled Lab 방식) | (다) PhysX 타이어 식을 torch 로 → articulation 에 외력 |
+  |---|---|---|
+  | sim 의 힘-slip | Coulomb: 붙어 있거나(slip 0) 미끄러지거나. μ_d < μ_s 로 "정점 뒤 감소"의 2단 근사만 가능 | Michigan(brush) + μ-slip 3점 그래프 — 선형 구간·정점·감소 |
+  | understeer | 한계 전까지 미끄럼각 0 → 없음 (조향 이득 무작위로 흉내, 횡가속도 비례는 못 냄) | 미끄럼각이 힘에 비례 → 생김 |
+  | DR 이 흔드는 것 | 계단의 높이(μ_s, μ_d) | 곡선의 높이(μ)와 기울기(C_κ, C_α) |
+  | bag 의 쓰임 | DR 범위를 정하고 검증 (C_α 같은 파라미터가 sim 에 없음) | 파라미터 직접 피팅 → DR 의 중심값 |
+  | 바뀌는 코드 | `_apply_mu` μ_s·μ_d 분리, DR 항목 추가 | 새 `tire.py`(순수 함수 + 단위 테스트), env 에서 Fz 읽기·외력 적용, 바퀴 PhysX 마찰 0 |
+  | 저속 안정성 | PhysX solver 가 처리 (문제 없음) | **직접 처리 필요** — 명시 계산이면 v ≲ 1 m/s 에서 바퀴 회전이 발산(C_κ ≈ 170 N 가정) |
+  | Fz | PhysX 가 내부에서 | 접촉 센서 법선력 — 직전 step 값(한 step 늦음) |
+  | compliant B1~B5 | 필요 (바퀴별 한계 = μ·Fz) | 필요 (힘 ∝ Fz) |
+  | A2 굴림 반지름 | 남음 (A2 결정 다시) | 사라짐 (반지름은 식의 파라미터 r_e) |
+  | 선례 | Wheeled Lab (Isaac Lab, zero-shot drifting) | 이번 검색에선 Isaac 에서 같은 조합 확인 못 함 (식은 PhysX Vehicles·CARLA·Unity 가 사용) |
+
+  Isaac Lab v2.3.2 `Articulation.set_external_force_and_torque(forces, torques, positions, body_ids, env_ids, is_global)` 확인 — deprecated 예고, 후속은 `permanent_wrench_composer`.
+  ⏳ 결정 대기: (나) / (다) + 이유
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
