@@ -1065,7 +1065,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   B1~B5 compliant (합의된 그대로) → T1 `tire.py` 파라미터·slip + 테스트 → T2 μ-slip·Michigan 힘 + 테스트 → T3 env_cfg 타이어 필드·CAR_YAML_KEYS(임시값)
   → (저속 처리 결정) → T4 Fz·속도 분해·slip 계산만(동작 불변) → T5 바퀴 PhysX 마찰 0 + 타이어 외력 적용 → T6 저속 처리 → T7 기록(타이어 힘·slip)
   → 서버 검증 (slip 쓸기·μ 1/0.5 직선 가속·정지 출발·정상 원선회, diag A~F·check_env)
-- ⏳ 확인 대기: 요약·임시값 / B1 의 compliant YAML 값 형태 — PhysX 값 그대로 vs 실측 타이어 세로 강성 + 코드 변환
+- ✅ **사용자 확인 (2026-10-19): 임시값 동의, compliant 는 PhysX 값 그대로** (YAML 키 `sim.ground.compliant_stiffness`·`_damping`, 적용 시점 spawn,
+  실측 타이어 세로 강성으로 바꾸지 않는다 — 실효 강성 ≈ 입력의 1.8~2.0 배라는 점은 주석으로만 남김)
+- 구현 시작: **B1** 지면 compliant 필드 + CAR_YAML_KEYS (env_cfg.py·tests/test_env_cfg.py, 동작 불변) — CLI 프롬프트 전달
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
