@@ -821,6 +821,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   `velocity_limit` 는 지워진다(:81-91 — racecar_cfg 의 velocity_limit 두 개는 죽은 값, 7차 경첩 readback 이 USD 의 4.39 였던 이유).
   implicit 액추에이터는 effort target 을 자르지 않고 PhysX 로 넘기므로(`articulation.py:1886-1897`) **런타임에 액추에이터 속성을 바꿔도 PhysX 한계는 그대로** —
   validate_drive 의 `--effort-scale` 이 효과가 없던 이유. 그래서 안전망은 spawn 값, 실제 제약(모터 총 토크)은 소프트웨어 runtime 값
+- 결합 안정 판정의 "한 step 늦음" 경우 (CLI 질문, 2026-10-19): 결합 토크를 지난 step 의 속도로 계산하는 경우. 상태 [twist, dt·Δω, 지난 twist, 지난 dt·Δω] 의
+  4×4 행렬 [[1,1,−a,−b],[0,1,−a,−b],[1,0,0,0],[0,1,0,0]]. **우리 코드는 실제로 제때** (`direct_rl_env.py:370-384` 매 물리 step 뒤 `scene.update`,
+  `articulation_data.py:763-769` 가 바퀴 속도를 새로 읽음) — 늦은 경우는 솔버 차이에 대한 여유로만 검사 → [[질문 로그]] 2026-10-19
 - 기록: 실험 E 의 잘못된 τ 제안은 7차 프롬프트에서 Claude 가 "(ii) 가 (i) 과 같은 응답이 되는 τ 를 제안하라" 고 시킨 데서 나왔다 — (i) 을 맞출 기준으로 삼은 것 자체가 잘못
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
