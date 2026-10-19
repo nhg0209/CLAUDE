@@ -797,7 +797,33 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   B 의 μ=0.5 에서 Fz=0 샘플 21개(6차 19) — 같은 현상(최대 토크에서 바퀴가 잠깐 뜸), 낮은 우선순위 유지
 - 8차에 같이 고칠 것: 실험 E 의 τ 제안 문구를 "서보 식 예측 vs 경첩 측정" 비교로 교체(실차 값을 넣은 뒤에도 sim 경첩이 서보 식을 따르는지 보는 검사가 된다)
 
-**8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, ⏳ 사용자 확인 대기):**
+**8차 결정 (2026-10-19, 사용자): 아래 제안 세 가지 그대로 — τ=0.06 유지 · 잠김 기본 켬 · 바퀴당 PhysX 한계 2.516.
+"이 값들을 9차에서 yaml 로 고칠 수 있게 설계"** → 8차 프롬프트에 넣은 9차 대비 구조:
+- 정의는 `RacingEnvCfg` 필드 한 곳, 파생값(k·c·모터 총 토크 기본값·안전망 기본값)은 숫자로 두지 않고 기본값 `None` = 코드 계산
+- 적용 시점 세 가지로 분류해 주석·표에: **runtime**(setter 로 실행 중 env 별 변경 → 9차 randomization 대상) / **spawn**(env 생성 때 한 번) / **usd**(재생성 필요).
+  이번 값은 바퀴당 안전망만 spawn, 나머지 runtime
+- `env_cfg.CAR_YAML_KEYS` = {cfg 필드: (car.yaml 키, 적용 시점)} — 9차 로더가 쓸 대응표 (키 이름은 잠정, 9차 확정)
+
+  | cfg 필드 | car.yaml 키 (잠정) | 적용 | 기본값 |
+  |---|---|---|---|
+  | steer_delay_s | real.steering.delay_s | runtime | 0 (안 쟀음) |
+  | steer_tau_s | real.steering.tau_s | runtime | 0.06 (안 쟀음) |
+  | steer_rate_max | real.steering.rate_max | runtime | 3.2 (스택 dynamics.yaml) |
+  | center_locked | real.drivetrain.center_locked | runtime | True |
+  | motor_torque_max_nm | real.drivetrain.motor_torque_max_nm | runtime | None → 2.516 (m·a_max·r·1.5) |
+  | coupling_spring_frac | sim.drivetrain.coupling_spring_frac | runtime | 0.1 |
+  | coupling_damper_frac | sim.drivetrain.coupling_damper_frac | runtime | 0.5 |
+  | wheel_effort_safety_nm | sim.drivetrain.wheel_effort_safety_nm | spawn | None → 모터 총 토크 |
+- setter 가 검증 — 결합이 안정 판정을 못 넘거나 모터 한계가 안전망보다 크면 ValueError (YAML 수정 실수가 조용히 넘어가지 않게)
+- `env.actuation_params()` = 지금 실제로 쓰는 env 별 값 → meta.json `actuation` (9차 규칙 4 의 "실제로 쓴 값" 자리), 콘솔이 읽음
+- drive.py 인자는 늘리지 않음 (9차 `--set`). STEER_STIFFNESS 같은 나머지 spawn 값은 9차에서 같은 방식으로
+- Isaac Lab 확인 (v2.3.2): `ImplicitActuatorCfg.effort_limit` 는 `effort_limit_sim` 으로 복사돼 PhysX 한계가 되고(`actuators/actuator_pd.py:60-67`),
+  `velocity_limit` 는 지워진다(:81-91 — racecar_cfg 의 velocity_limit 두 개는 죽은 값, 7차 경첩 readback 이 USD 의 4.39 였던 이유).
+  implicit 액추에이터는 effort target 을 자르지 않고 PhysX 로 넘기므로(`articulation.py:1886-1897`) **런타임에 액추에이터 속성을 바꿔도 PhysX 한계는 그대로** —
+  validate_drive 의 `--effort-scale` 이 효과가 없던 이유. 그래서 안전망은 spawn 값, 실제 제약(모터 총 토크)은 소프트웨어 runtime 값
+- 기록: 실험 E 의 잘못된 τ 제안은 7차 프롬프트에서 Claude 가 "(ii) 가 (i) 과 같은 응답이 되는 τ 를 제안하라" 고 시킨 데서 나왔다 — (i) 을 맞출 기준으로 삼은 것 자체가 잘못
+
+**8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
   → 네 바퀴 토크 합 = 모터 토크 그대로(결합은 내부 토크), 축 안의 좌우 차이는 건드리지 않음(축 안 open diff 유지).
