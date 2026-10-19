@@ -1001,6 +1001,23 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **사용자 (2026-10-19): "slip 곡선을 고려해야 될 것 같다"** → PhysX Vehicles SDK·F1TENTH gym 의 타이어 계산 설명([[질문 로그]] 2026-10-19, 그림 `attachments/tire/tire_models.png`).
     ⏳ 결정 대기 (협업 규칙 1단계): 타이어 힘을 어디서 만들지 — 직접 만든 식(articulation 유지, PhysX 마찰 끄고 외력) / PhysX Vehicles / 별도 차량 모델(F1TENTH 식).
     이 결정이 A2 결정(굴림 반지름)과 compliant B1~B5 의 필요 여부를 바꾸므로 그 둘은 보류
+- **결정 (2026-10-19, 사용자): 2번 PhysX Vehicles SDK** — 이유 "검증된 방법". 조건: **우리 프로젝트에 제대로 쓸 수 있는지 먼저 검증**
+- 검토 (Claude, 협업 규칙 3단계):
+  - 타당: slip·결합 slip(Michigan = brush)·저속 sticky·서스펜션·차동이 이미 구현돼 있다. 4륜 차동에 **센터 잠김이 있다** (`PxVehicleFourWheelDriveDifferentialParams`
+    centerBias = centerTarget = 1.0 → "locked", 8차 결정과 맞음). 바퀴 반지름이 파라미터라 A2 굴림 반지름 문제가 사라진다
+  - "검증됨" 의 범위: 게임·실시간 CPU 차량 시뮬로 검증된 것이지 (a) Isaac Lab GPU 병렬 RL, (b) 실제 RC 타이어와의 일치로 검증된 것은 아님 — 계수는 어차피 우리가 실측으로 맞춰야 함.
+    가로 방향은 정점 뒤 감소가 없다(brush 포화, μ-slip 그래프는 세로 slip 에만 걸림)
+  - **가장 큰 위험 = Isaac Lab 호환성**: Isaac Lab GitHub issue #3735 (Isaac Sim 5.0) — PhysX vehicle 을 Isaac Lab 에서 띄우면 "physics scene 에 vehicle context API 없음",
+    "GPU 직접 접근으로 설정된 scene 에 GPU 비호환 constraint 를 넣을 수 없음" 오류 (검색 요약 기준, 공식 답변 못 찾음). PhysX vehicle 은 서스펜션 한계·sticky 를
+    PxConstraint 로 건다(`PxVehiclePhysXConstraintComponents.h`) — 오류와 맞는 구조. vehicle 갱신 코드는 CPU(`physxvehicle/src`) → GPU 물리면 step 마다 CPU↔GPU 동기화,
+    CPU 장치로 돌리면 수천 env 가 느림. 예전 Isaac Gym 포럼에도 "vehicle SDK 는 불가, URDF 바퀴로" 라는 답
+  - 구조 교체: articulation(바퀴 = 링크) → 강체 + vehicle 구성요소(바퀴는 링크가 아님). 조향 서보 모델(7차)·센터 결합(8차)·관측(바퀴 ω)·기록·diag A~F 를 다시 맞춰야 함.
+    env 별 제어 입력을 USD 속성으로 쓰는 방식이면 env 수에 비례하는 비용 — 확인 필요
+  - 실패 시 대안(최종 결정은 사용자): SDK 없이 **같은 식**(`computeTireForceMichiganModel` + slip + μ-slip 그래프 + 저속 처리, 약 100 줄)을 torch 로 옮겨
+    지금 articulation 에 외력으로 — "검증된 식" 은 유지, GPU 호환 문제는 피함 (= 1번 + PhysX 식)
+- 검증 계획 (제안, 확인 대기): **V0** 설치·설정 확인(읽기만, `build/diag/vehicle_probe.py`) → **V1** 차량 1 대 cpu·cuda 에서 뜨는가·움직이는가
+  → **V2** env 64·1024 복제·step 시간·env 별 제어 → **V3** 물리 확인(μ 1·0.5 직선 가속, 일정 반경 선회, 출발·정지). V1 에서 cuda 실패면 여기서 멈추고 다시 결정
+- 범위 설명(실측에 맞출 특성 고르기)·실차 bag 에서 계수 추출 가능성 → 결정 대기 ([[질문 로그]] 2026-10-19)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
