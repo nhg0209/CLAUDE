@@ -1018,6 +1018,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - 검증 계획 (제안, 확인 대기): **V0** 설치·설정 확인(읽기만, `build/diag/vehicle_probe.py`) → **V1** 차량 1 대 cpu·cuda 에서 뜨는가·움직이는가
   → **V2** env 64·1024 복제·step 시간·env 별 제어 → **V3** 물리 확인(μ 1·0.5 직선 가속, 일정 반경 선회, 출발·정지). V1 에서 cuda 실패면 여기서 멈추고 다시 결정
 - 범위 설명(실측에 맞출 특성 고르기)·실차 bag 에서 계수 추출 가능성 → 결정 대기 ([[질문 로그]] 2026-10-19)
+- 사용자 질문: PhysX Vehicles 는 어디 쓰이나, Isaac 차량 RL 은 어떻게 하나 → PhysX Vehicles 는 게임 엔진(Unity·UE4)·CARLA 등 실시간 단일 차량용,
+  Isaac 차량 RL 의 주류는 articulation + PhysX 강체 접촉 + DR (Wheeled Lab 코드 확인 — 타이어 모델 없이 drifting zero-shot 주장). PhysX Vehicles 를 Isaac Lab GPU RL 에 쓴 사례 못 찾음 ([[질문 로그]] 2026-10-19).
+  ⏳ 이 정보로 결정(2번) 유지 여부 재확인 대기 — V0 는 어느 쪽이든 정보가 됨
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
