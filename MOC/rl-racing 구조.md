@@ -1068,6 +1068,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **사용자 확인 (2026-10-19): 임시값 동의, compliant 는 PhysX 값 그대로** (YAML 키 `sim.ground.compliant_stiffness`·`_damping`, 적용 시점 spawn,
   실측 타이어 세로 강성으로 바꾸지 않는다 — 실효 강성 ≈ 입력의 1.8~2.0 배라는 점은 주석으로만 남김)
 - 구현 시작: **B1** 지면 compliant 필드 + CAR_YAML_KEYS (env_cfg.py·tests/test_env_cfg.py, 동작 불변) — CLI 프롬프트 전달
+  - ✅ B1 `17a5e34` (dev push 됨, CLI 보고는 20ea40e — push 전에 다시 쓰인 것으로 보임) — 필드 2개·음수 거부·CAR_YAML_KEYS(sim.ground.*, spawn), 196 passed·12 skipped. diff 확인함
+  - ✅ B2 `163b2e3` (push 전) — `_setup_scene` 지면 RigidBodyMaterialCfg 에 연결 + 정적 테스트, 197 passed. 0.0 = Isaac Lab 기본값과 같은 USD → 동작 불변
+  - B3 기록: diag 0-3 이 지면 재질의 USD 속성 `physxMaterial:compliantContactStiffness/Damping` 을 출력, meta.json 에 "contact" 키(`env.contact_params()`) — CLI 프롬프트 전달
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
