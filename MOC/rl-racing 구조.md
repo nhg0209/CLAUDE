@@ -1105,6 +1105,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **T2a** `e129445` (push 전) — `friction_vs_slip`, 225 passed·12 skipped
 - **T2b** `michigan_force` — 추가 기준값: rear wheel(rest 8.2 N, longStiff 164 N, latStiffY 51.132389) κ 0.02·α 0.05 → (2.744623, −1.946312) ·
   α 0.3 → Fy −7.608353 · normal load 1e-9 N·κ 50 → Fx 8e-10 (float32 에서 K³ overflow 방지: f1(K) = poly(min(K, 3)) — poly 가 [0,3] 에서 단조 증가, poly(3) = 1)
+- ✅ T2a dev push 확인, diff 확인함
+- ✅ **T2b** `6b13284` (push 전) — `smoothing_f1`·`michigan_force`, 기준값 A~L·rear·per-wheel broadcast 가 numpy 참조와 1e-6 이내, 244 passed·12 skipped
+- **T3** env_cfg 타이어 필드 9개 + CAR_YAML_KEYS (전부 spawn, 지금은 읽는 곳 없음 → 동작 불변):
+  `real.tire.*` = rolling_radius_m(=WHEEL_RADIUS) · long_stiffness_per_load 20 · cornering_stiffness_per_load_front 4.718 · _rear 5.4562 · lat_stiff_x 2.0 ·
+  friction_vs_slip ((0,1),(0.15,1),(1,0.8)) / `sim.tire.*` = load_cap_ratio 3.0 · slip_eps_long 2.0 · slip_eps_lat 0.5.
+  PhysX 단위 변환은 T4 의 env: rest_load(질량·무게중심으로 axle 별) → longStiff = per_load·rest_load, latStiffY = per_load·rest_load / f1(3/latStiffX)
+- 다음: T3 뒤 **저속 처리 1단계** (ε 크게 / 선형화 암묵 계산 / 타이어 substep / relaxation length / 저속 감쇠 전환)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
