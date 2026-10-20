@@ -1070,7 +1070,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - 구현 시작: **B1** 지면 compliant 필드 + CAR_YAML_KEYS (env_cfg.py·tests/test_env_cfg.py, 동작 불변) — CLI 프롬프트 전달
   - ✅ B1 `17a5e34` (dev push 됨, CLI 보고는 20ea40e — push 전에 다시 쓰인 것으로 보임) — 필드 2개·음수 거부·CAR_YAML_KEYS(sim.ground.*, spawn), 196 passed·12 skipped. diff 확인함
   - ✅ B2 `163b2e3` (push 전) — `_setup_scene` 지면 RigidBodyMaterialCfg 에 연결 + 정적 테스트, 197 passed. 0.0 = Isaac Lab 기본값과 같은 USD → 동작 불변
-  - B3 기록: diag 0-3 이 지면 재질의 USD 속성 `physxMaterial:compliantContactStiffness/Damping` 을 출력, meta.json 에 "contact" 키(`env.contact_params()`) — CLI 프롬프트 전달
+  - ✅ B2 dev push 확인, diff 확인함 (커밋 본문의 "B1(20ea40e)" 는 실제 17a5e34 — 기록만)
+  - ✅ B3 `83c017e` (push 전) — diag 0-3 이 재질 USD 의 `physxMaterial:compliantContactStiffness/Damping` 출력, meta.json "contact" 키(`env.contact_params()`), 198 passed
+  - B4 재현 테스트: check_env flat 장면에 ⑥ 정지 좌우 하중 — 1.5 s 정착 후 0.5 s 평균 (FL+RL)/합, 네 env 모두 0.50 ± 0.01 이면 PASS.
+    flat 장면에 wheel_contact_sensors=True (하중 읽기, 물리 동작은 안 바뀜 — 접촉 보고만 켬). 지금(강체)은 ≈0.56 으로 FAIL 이 나와야 한다 — CLI 프롬프트 전달
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
