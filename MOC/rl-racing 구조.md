@@ -1200,6 +1200,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - 합의 요약 (확인 대기): 타이어 force = Michigan(κ' = u_x/σ_x, tanα' = u_y/σ_y) + carcass damping(longitudinal +c·du_x/dt, lateral −c·du_y/dt), 합력 |F| ≤ μ_eff·load.
   u 는 직렬 모델 — R1 에 s/(1+β), |v|/(1+β) 를 넘겨 갱신(β = |v|·c/C, 방향별), 매 step 그 step 에 읽은 속도로 먼저. 임시값 σ_x = σ_y = 2 cm, **c = 15 N·s/m**, |u/σ| ≤ 1
 - 작업 단계: **R2a** tire 감쇠 force + 합력 상한 → R2b tire cornering stiffness·β 도우미 → R3 env_cfg 필드(σ_x·σ_y·c·상한) + eps 주석 정정 → T4a → T4b → T5 → T7 → 서버 검증
+- ✅ R1 dev push 확인, diff 확인함 · ✅ **R2a** `61c7051` (push 전) — `damped_tire_force` (Michigan + carcass damping + 합력 상한), 265 passed·12 skipped
+  (사용자가 R2a 를 진행 → 합의 요약·c 15 확인으로 기록)
+- **R2b** `cornering_stiffness`(그 순간 load 의 C_α, michigan_force 안의 식과 같음) · `series_factor`(β = |v|·c/C, C = 0 이면 0)
+- T4b 메모: 바퀴가 떠 있으면(normal load 0) contact 가 없으니 carcass deflection u 를 0 으로 되돌릴지 — T4b 프롬프트 전에 확인
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
