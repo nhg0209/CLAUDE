@@ -1112,6 +1112,25 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   friction_vs_slip ((0,1),(0.15,1),(1,0.8)) / `sim.tire.*` = load_cap_ratio 3.0 · slip_eps_long 2.0 · slip_eps_lat 0.5.
   PhysX 단위 변환은 T4 의 env: rest_load(질량·무게중심으로 axle 별) → longStiff = per_load·rest_load, latStiffY = per_load·rest_load / f1(3/latStiffX)
 - 다음: T3 뒤 **저속 처리 1단계** (ε 크게 / 선형화 암묵 계산 / 타이어 substep / relaxation length / 저속 감쇠 전환)
+- **저속 처리 1단계 설명 (2026-10-20, 추천 없음)** — 장난감 모델(바퀴 하나 + 차체 질량 1/4, dt 5 ms, 임시 계수)로 다섯 가지를 직접 비교:
+
+  ![](../attachments/tire/lowspeed_options.png)
+
+  - 원인: slip velocity s = ω·r − v 의 모드가 `λ = C_κ·(r²/J + 1/m)/(|v|+ε) = 598/(|v|+ε)` [1/s] 로 줄어든다(C_κ 170 N, r²/J + 1/m = 3.52 1/kg).
+    명시 계산 안정 dt·λ < 2 → |v|+ε > 1.5 m/s, 진동 없음 dt·λ < 1 → > 3.0 m/s. (앞서 바퀴만 보고 낸 2.0 m/s 는 차체 질량을 빼먹은 값 — 정정.
+    임시값 ε 2.0 은 안정 쪽이지만 정지 근처에서 감쇠하는 진동이 남는다)
+  - 우리 차가 작고 바퀴가 가벼워(J/r² = 0.42 kg) 이 모드가 빠르다 — 이게 문제의 뿌리
+  - ① ε 크게: 코드 0. 대가는 속도 의존 stiffness 왜곡 `|v|/(|v|+ε)` — ε 2.0 이면 1 m/s 에서 0.33, 3 m/s 에서 0.6. ε_lat 0.5 면 cornering stiffness 가 1 m/s 에서 67%
+    → 저속 코너에서 가짜 understeer (Δκ 가 배울 대상이 sim 인공물). ε 0.1(PhysX 기본)은 출발에서 Fx 가 ±8.5 N 로 뛰고 정지 유지에서 끝없이 떨린다(100 Hz, ±0.06 m/s)
+  - ② 선형화 암묵: 작은 ε 그대로, 출발 깨끗. 대가: dF/ds 와 "바퀴가 맡는 차체 질량" 근사가 필요(4 바퀴·center coupling 이 엮여 정확하지 않음),
+    saturation 을 넘나들 때 선형화가 틀려 한 번 크게 튐(정지 유지 첫 step −8.5 N, 50 ms 안에 정착)
+  - ③ physics dt ↓ (1.25 ms): 깨끗하지만 그래도 ε 0.75 필요(1 m/s 에서 0.57), 학습 계산 4 배, center coupling k = frac·J/dt² 다시 조정, diag·check_env 전부 다시
+  - ④ relaxation length (transient slip, brush model 의 bristle 이 굴러가며 휘는 것을 식으로): 속도로 나누지 않음, 물리적 근거. 대가: 바퀴마다 상태 2 개(reset 관리),
+    σ 미지(≈ contact patch 길이, 1~2 cm?), **정지 근처에서 감쇠가 없어 진동이 남음**(그림: 0.3 s 뒤에도 ±2.3 N) → 저속 감쇠항 추가가 보통
+  - ⑤ 저속 감쇠 전환: 단순·정지 안정. 대가: ε 0.1 의 slip 식이 안정한 건 ≈1.5 m/s 이상이라 전환 문턱이 ≈2 m/s — 운용 속도(0~5 m/s)의 큰 부분이 비물리적 감쇠 힘.
+    PhysX sticky 는 비슷한 발상이지만 구동하지 않는(주차) 바퀴에만 건다
+  - 조합 가능 (예: ②+작은 ε, ④+저속 감쇠, ①+③). 장난감 모델은 바퀴 하나 — 실제 4 바퀴·PhysX 관절 solver 에서는 T4/T5 diag 로 다시 확인
+  - ⏳ 결정 대기: 방식(조합) + 이유 / 정확해야 하는 최저 속도 범위 / ④ 면 σ·감쇠, ③ 이면 계산량 4 배 감수 여부
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
