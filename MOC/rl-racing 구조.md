@@ -1101,6 +1101,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   T2b 기준값은 PhysX C++ 식을 1:1 로 옮긴 numpy 참조로 미리 계산 (임시값: 정지 하중 8.8 N, longStiff 176 N, latStiffY 47.4496 N/rad, latStiffX 2):
   κ 0.02 → Fx 3.071526 (선형 3.52 의 0.87) · κ 0.5 → 8.075294 (= μ·g(0.5)·Fz) · α 0.05 → Fy −1.918432 · κ=α=0.05 → (6.056713, −1.728931) ·
   μ 0.5, κ 0.05 → 4.237037 · Fz 0 → 0 · Fz 40(상한 3 배 = 26.4) κ 0.02 → 3.365873 · κ −0.1, α −0.05 → (−8.311177, +1.720870)
+- ✅ T1 dev push 확인, diff 확인함 (docstring 의 PhysX 함수 이름이 원문 철자 `computeLongitudionalSlip` 과 다름 — T2b 에서 맞춤)
+- ✅ **T2a** `e129445` (push 전) — `friction_vs_slip`, 225 passed·12 skipped
+- **T2b** `michigan_force` — 추가 기준값: rear wheel(rest 8.2 N, longStiff 164 N, latStiffY 51.132389) κ 0.02·α 0.05 → (2.744623, −1.946312) ·
+  α 0.3 → Fy −7.608353 · normal load 1e-9 N·κ 50 → Fx 8e-10 (float32 에서 K³ overflow 방지: f1(K) = poly(min(K, 3)) — poly 가 [0,3] 에서 단조 증가, poly(3) = 1)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
