@@ -1162,6 +1162,19 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **공통 필수 (검토 결과)**: 감쇠 force 를 friction 한계로 자르지 않으면 wheelspin 출발에서 force 가 15.9 N(μ·Fz 8.5 N 의 1.9 배), 0.3 s 속도가 14~17% 빨라진다 →
     합력 |(Fx, Fy)| ≤ μ_eff·load 로 자른다 (자르면 두 형태 모두 8.5 N, 속도 차이 +0.6%)
   - ⏳ 결정 대기: (가) v_low 아래만 / (나) v_low 아래만 / (나) 항상 + 이유, v_low 값(제안 1 m/s — 코너 2~3 m/s 에 안 걸림)
+- ✅ T3 dev push 확인, diff 확인함 (eps 주석은 이제 낡음 — 안정 조건 3.0 m/s 정정·force 에 안 씀 → R3 에서 고침)
+- **결정 (2026-10-20, 사용자): (나) bristle 휨 속도 감쇠를 모든 속도에서 켬** (이유 한 줄 확인 대기)
+- 검토 (Claude, 3단계):
+  - 타당: 정상 상태에서 0 이라 어느 속도에서도 force 를 치우치지 않는다 · v_low·fade 함수가 필요 없어 파라미터가 하나 준다 ·
+    1~2 m/s longitudinal 진동(ζ 0.14~0.29)이 사라진다 · tread·carcass hysteresis 로 해석된다
+  - 감쇠가 더하는 ζ ≈ c·k/(2ω_n) — longitudinal 0.41, lateral 0.47 (c 40) → 정지에서도 0.41, 2 m/s longitudinal 은 0.29 + 0.41 ≈ 0.70
+  - 안정 조건은 모든 속도에서 dt·c·k < 1 — longitudinal c < 57, lateral c < 174 N·s/m → c 40 이면 둘 다 만족. k 는 J·질량으로 env 가 계산하므로 init 에서 검사(T4b)
+  - 대가: transient 에서 force 가 slip 변화에 즉시 반응해 relaxation 지연이 줄어든다(1.5 m/s 예: 최대 |F| 1.8 → 3.3 N). c 의 실제 값은 측정이 어렵다 →
+    DR 범위로 다룰 후보. 정상 상태 구간에서 C·μ 를 맞추는 bag 피팅에는 영향 없음
+  - 구현 세부: du/dt 는 상한 적용 **후** 실제 변화량/dt (wheelspin 으로 상한에 닿으면 0 → 감쇠 force 도 0) · 합력 |F| ≤ μ_eff·load 상한은 그대로 필수
+- 합의 요약 (확인 대기): 타이어 force = Michigan(κ' = u_x/σ_x, tanα' = u_y/σ_y) + c·du/dt (longitudinal·lateral 각각, 모든 속도), 합력은 μ_eff·load 로 자른다.
+  u 는 매 step 그 step 에 읽은 속도로 먼저 갱신(exp 정확해, |u/σ| ≤ 1), du/dt 는 상한 적용 후 실제 변화량. 임시값 σ_x = σ_y = 2 cm, c = 40 N·s/m. v_low 없음
+- 작업 단계: **R1** tire.relaxation_update → R2 tire 감쇠 + 합력 상한 → R3 env_cfg 필드(σ, c, 상한) + eps 주석 정정 → T4a → T4b → T5 → T7 → 서버 검증
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
