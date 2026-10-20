@@ -1181,6 +1181,25 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   (직렬이면 s 와 |v| 를 1 + |v|·c/C 로 나눠 넘기면 같은 정확해). ⏳ 결정 대기: 병렬 c 40 유지 / 병렬 c 10~20 / 직렬 형태
   - 직렬로 하면 생기는 차이 ([[질문 로그]] 그림 `series_vs_parallel.png`): 정지·출발·정상 상태는 같고 주행 중 transient 만 다름. 3 m/s lateral k 40 에서
     병렬은 step 직후 force 가 정상 상태의 2.89 배(비물리적), 직렬은 0.74 에서 τ 26 ms 로 쌓임. k 10 이면 병렬 0.72·6.7 ms / 직렬 0.42·11.5 ms 로 가깝다
+- ✅ **R1** `697934f` (push 전) — `tire.relaxation_update` (exp 정확해 + 상한 + du/dt), 256 passed·12 skipped
+- **결정 (2026-10-20, 사용자): 직렬 형태 + c 는 물리 범위로** (이유: 물리적 일관성 — 앞선 "물리적 근거" 와 같은 맥락으로 기록)
+- 검토 (Claude, 3단계):
+  - 타당: 직렬은 carcass(spring‖damper)–contact 모델 그대로라 일관되고, 물리 범위 c 는 step 직후 비물리적 overshoot 가 없다
+  - c 값 비교 (장난감·해석해, σ 2 cm):
+
+    | c [N·s/m] | ζ long · lat | 고무 손실계수 η | 정지 정착 | 3 m/s 직렬 long 시작·τ | lat 시작·τ |
+    |---|---|---|---|---|---|
+    | 10 | 0.10 · 0.12 | 0.20 | 195 ms | 0.15 · 7.8 ms | 0.42 · 11.5 ms |
+    | **15 (제안)** | 0.15 · 0.18 | 0.31 | 125 ms | 0.21 · 8.4 ms | 0.52 · 13.9 ms |
+    | 20 | 0.20 · 0.24 | 0.41 | 90 ms | 0.26 · 9.0 ms | 0.59 · 16.3 ms |
+
+    15 = 타이어 고무 η 범위(대략 0.1~0.4)의 가운데. c 하나를 longitudinal·lateral 에 같이 쓴다(실제는 다를 수 있음 — 측정되면 나눔)
+  - 근사 두 개: β = |v|·c/C 의 C 는 선형 stiffness(비선형 구간에서 실제 기울기는 더 작음 → β 를 작게 잡음), lateral C 는 그 순간 load 의 cornering stiffness
+  - 정지 정착이 c 40 의 35 ms 보다 길어짐(125 ms) — 정지·출발 순간의 작은 진동(27.5 Hz)이 바퀴 ω 관측에 노이즈처럼 보일 수 있다. episode 시작은 어차피 정착 시간을 둠
+  - 부호: longitudinal force 는 deflection 과 같은 방향(+c·du/dt), lateral 은 T1 약속상 반대 방향(michigan fy 가 −)이라 감쇠도 −c·du/dt
+- 합의 요약 (확인 대기): 타이어 force = Michigan(κ' = u_x/σ_x, tanα' = u_y/σ_y) + carcass damping(longitudinal +c·du_x/dt, lateral −c·du_y/dt), 합력 |F| ≤ μ_eff·load.
+  u 는 직렬 모델 — R1 에 s/(1+β), |v|/(1+β) 를 넘겨 갱신(β = |v|·c/C, 방향별), 매 step 그 step 에 읽은 속도로 먼저. 임시값 σ_x = σ_y = 2 cm, **c = 15 N·s/m**, |u/σ| ≤ 1
+- 작업 단계: **R2a** tire 감쇠 force + 합력 상한 → R2b tire cornering stiffness·β 도우미 → R3 env_cfg 필드(σ_x·σ_y·c·상한) + eps 주석 정정 → T4a → T4b → T5 → T7 → 서버 검증
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
