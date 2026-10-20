@@ -85,6 +85,9 @@
 로드맵의 방침을 따릅니다 — **RL 용어는 영문 원문 그대로**, 설명만 한국어로.
 (`policy`를 "정책"으로 번역하면 논문·코드와 매칭이 안 되기 때문)
 
+**차량 동역학·물리 용어도 영문 원문 그대로** (사용자 요청, 2026-10-20) — lateral force, longitudinal force, normal load, slip ratio, slip angle, cornering stiffness, longitudinal stiffness, combined slip, saturation, peak, wheelspin, traction control, understeer/oversteer, load transfer, contact patch, effective rolling radius 등.
+"옆 힘", "세로 slip", "미끄럼각", "헛돎" 처럼 번역해 쓰지 않는다. 문장의 조사·설명만 한국어.
+
 ## 저장소의 역할
 
 사용자는 로컬 PC의 Obsidian에서 이 볼트를 엽니다. Claude는 원격 세션에서 동작하므로
