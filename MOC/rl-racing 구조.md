@@ -1328,6 +1328,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **T5-2** on 모드에서 바퀴 shape 만 PhysX 마찰 0: Isaac Lab events.py randomize_rigid_body_material 과 같은 방법(link_paths 마다 rigid body view 의
   max_shapes → body 별 shape 수)으로 바퀴 shape 마스크, `_apply_mu` 가 on 이면 바퀴 0·나머지 μ. drive.py `--tire-model` 플래그.
   서버: off 는 t4b4b_accel 과 비트 단위 같음 · on(외력은 아직 없음)은 바퀴만 헛돌고 차가 거의 안 움직임(vx ≈ 0), κ' 가 곧 상한 1
+- ✅ **T5-2** `939e096` (push 전) — 312 passed. **서버 PASS**: shape [base 1, 경첩 0·0, 바퀴 1·1·1·1] → 바퀴 4/5. on: 끝 vx −0.0001, 바퀴 ω 360.6, Fz 합 34.04, κ' 최대 1.000.
+  off: 달라진 키 `priv__tire_tan_alpha_p` 하나 — **예상했어야 할 차이**: T5-0 이 C_α 를 41.7 → 123.2 로 바꿔 β_lat = |v|·c/C_α 가 달라져 lateral u 의
+  빠르기가 바뀜(정상 상태 값은 같음). longitudinal 과 물리는 그대로 → T5-0 값이 서버에 반영됐다는 간접 확인이기도 함
+  (CLI: 구현을 테스트보다 먼저 쓴 뒤 stash 로 실패 확인 — 커밋 메시지에 기록)
+- **T5-3 을 둘로**: T5-3a force 계산·기록(두 모드, 아직 안 가함) → T5-3b on 모드에서 바퀴 접지점에 적용.
+  T5-3a 예측(off 직진 2 m/s², κ' 와 Fz 로 계산): 바퀴당 1.71·1.71·1.80·1.67 N, 합 6.89 N ≈ M·a = 6.94 N (PhysX 의 실제 force) — 관찰용
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
