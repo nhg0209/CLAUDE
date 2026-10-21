@@ -1360,6 +1360,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     앞에 바깥 방향 성분을 만들어 앞 lateral force·slip angle 이 커지는 것(tight corner braking). bag 원 주행과 비교할 항목
   - 작은 메모: env.py 주석이 spin 반작용(−r·f_x)을 "구름저항" 이라 부름 — rolling resistance 와 다른 것, 나중에 정정
 - **T5-4** check_env `--tire-model` (두 장면에 전달, 머리말에 모드). on 모드 ③ μ ≤ 0.5 는 보고만(참고값 y₂·μ·g, PASS/FAIL 은 ⑦), ①④⑤⑥ 그대로 판정
+- ✅ **T5-4** `ff852d7` dev 확인 — 323 passed. **서버 PASS**: off ①③⑥ 그대로(③ μ 1·0.5·0.25·0.12 = 9.665·4.903·2.451·1.176).
+  on: ① PASS · ⑥ PASS · map ④⑤ PASS. on ③ μ ≤ 0.5 측정 3.940·1.964·0.941 대 참고 y₂·μ·g 3.924·1.962·0.942 (비 1.004·1.001·1.000) —
+  wheelspin 으로 κ' 상한 1 → 배율 0.8 예측과 정확히 맞음. on ③ μ = 1: 9.217 (토크 한계 예측 9.598 의 0.96, 최대 slip 0.14 = 정점 근처 —
+  load transfer 로 앞이 가벼워진 채 같은 κ' 라 앞 K 가 먼저 커져 정점 합이 μMg 보다 조금 작음, 보고)
+- **T5-5 를 둘로**: T5-5a `rl_racing/eval/tire_check.py` 순수 함수(numpy) — 0.1 s 구간마다 F_meas = M·Δv/Δt 대 F_model 평균, err = |차|/(μMg),
+  정점 전 구간(κ_min ≤ max|κ'| < 0.15)만 판정, 정점 전 구간이 0 개면 FAIL(all([]) 함정) → T5-5b check_env ⑦(torque 모드 램프 4 s, μ 1.0·0.5,
+  F_model = Σ tire.damped_tire_force(로그의 κ'·tanα'·F_z, du = 0 — 느린 램프라 damping 항 ≈ 0.01 N)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
