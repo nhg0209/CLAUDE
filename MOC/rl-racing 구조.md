@@ -1289,6 +1289,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   (나) 차체 body 의 접지점 위치에 force + 바퀴에 spin 토크 −r·f_x 를 외부 torque 로 따로. 피할 것: 바퀴 중심에 force 만(구동 토크를 막는 −r·f_x 가 없어
   바퀴가 계속 빨라지고, load transfer 의 높이가 h → h − r 로 줄어 31% 만 남음). API 는 2.3.2·3.0 모두 있는 `instantaneous_wrench_composer`
   (매 substep 뒤 자동 초기화, positions·is_global 받음). 경첩 축이 바퀴 중심을 지나는 수직선(킹핀 경사·scrub 0)이라 두 방법 모두 조향 토크는 0
+- ✅ **결정 (2026-10-21, 사용자): (가) 바퀴 body 의 접지점에 force** — 이유: 회전 토크를 따로 주는 대신 실제와 같은 경로
+  - 검토: 모멘트가 위치에서 자동으로 맞고 이중 계산 위험이 없다. 놓친 점 — ① 위치 기준(link 원점 대 COM)을 Isaac Lab 소스로 확인할 것(바퀴는 둘이 같음)
+    ② 지금 `_apply_mu` 는 차량의 **모든** shape 에 μ 를 쓴다 → on 모드에서는 바퀴 shape 만 0, 차체 shape 는 μ 유지(shape↔body 대응을 찾아야 함)
+    ③ rolling resistance 는 두 모드 모두 없다(PhysX 도 없음) — coasting bag 으로 9차에 다룰 항목 ④ 접지점 = 중심 − r·e_z 는 compliant 침하(≈1 mm)를 무시(모멘트 2%)
+  - 합의 요약(확인 대기): on 모드에서 매 substep u 갱신 직후 damped_tire_force 로 (f_x, f_y) → F = f_x·e_fwd + f_y·e_lat 를 바퀴 body 의 p_w − r·e_z 에
+    instantaneous_wrench_composer(is_global, positions)로 가한다. 바퀴 shape 의 PhysX 마찰만 0, μ 는 타이어 식으로. off 모드는 force 없이 u 기록만
+  - T5 단계(안): T5-1 cfg `tire_model` 스위치 + 검사 → T5-2 on 모드 바퀴 shape 마찰 0 → T5-3 force 계산·적용·기록 → T5-4 check_env `--tire-model`·모드별 기대값
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
