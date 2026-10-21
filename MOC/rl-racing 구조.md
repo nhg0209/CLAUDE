@@ -1242,10 +1242,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     Fz 문턱 없음. episode reset 때만 u = 0. T7 에서 공중 step 수 기록
 - **T4b 단계**: T4b-1 tire.py `axle_rest_loads`·`stiffness_from_per_load`(순수) → T4b-2 env 초기화(sim 의 질량·COM 으로 rest load, 바퀴별 stiffness,
   안정 확인 dt·c·(r²/J + 1/m) = 0.264 < 1, 서버에서 ⑥ 실측 앞 8.84·뒤 8.18 N 과 대조) → T4b-3 바퀴 운동량 계산 도우미로 정리(값 불변, T4a-2 와 같은 숫자)
-  → T4b-4 u 상태·reset·substep 갱신(그림자 — force 는 아직 PhysX)·κ'·tanα' 기록. 결정 대기: 타이어 모델 켜고 끄는 cfg 스위치를 둘지
-- **사용자: 타이어 모델 on/off 스위치 (가) 두는 쪽** (이유 한 줄·합의 요약 확인 대기). 검토·제안: `tire_model: bool` spawn, T5 서버 검증 전 False → 검증 뒤 기본값 True
+  → T4b-4 u 상태·reset·substep 갱신(계산·기록만 — 차를 미는 force 는 아직 PhysX)·κ'·tanα' 기록. 결정 대기: 타이어 모델 켜고 끄는 cfg 스위치를 둘지
+- ✅ **결정 (2026-10-21, 사용자 동의): 타이어 모델 on/off 스위치 (가)** — 아래 합의 요약 그대로. 검토·제안: `tire_model: bool` spawn, T5 서버 검증 전 False → 검증 뒤 기본값 True
   (별도 커밋). off = 지금 PhysX 마찰, on = 바퀴 PhysX 마찰 0 + 타이어 외력 + 접촉 센서 강제. μ DR 이 가는 곳이 모드마다 다름(_apply_mu).
-  그림자 u 계산은 두 모드 모두(off 에서 "타이어 모델이었다면" 을 기록). check_env `--tire-model` 로 ③(②) 기대값만 모드별, ①④⑤⑥ 공통
+  u 계산·기록은 두 모드 모두(off 에서는 차에 안 쓰고 "타이어 모델이었다면" 을 기록만). check_env `--tire-model` 로 ③(②) 기대값만 모드별, ①④⑤⑥ 공통
 - ⚠️ lateral 임시값 4.718/rad(F1TENTH 선형 모델)은 brush 에서 saturation 32.5° — T5 전에 유지/조정 따로 결정 ([[질문 로그]] 「stiffness」)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
