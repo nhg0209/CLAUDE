@@ -1275,6 +1275,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     직진 2 m/s² 앞→뒤 1.59 N → h = ΔF·L/(m·a) = 0.076 m. Fz 신호가 물리적으로 일관됨
 - **T4b-4b 를 둘로**: T4b-4b-1 tire.py `series_relaxation_step`(β 계산 + R1 호출을 한 순수 함수로 — PC 에서 테스트) → T4b-4b-2 env 연결
   (u 상태·reset·_apply_action 첫 줄에서 substep 갱신·κ'·tanα' 기록)
+- ✅ **T4b-4b-1** `eb17fc3` (push 전) — 306 passed·12 skipped (+6)
+- 설명 방식 변경 (2026-10-21, 사용자: "설명을 하나도 모르겠고 가독성이 떨어진다") — 큰 그림 `attachments/tire/pipeline.png`(5 ms 마다 ①~⑤) 를 기준으로,
+  단계마다 "그림의 몇 번 박스 / 무엇을 하는지 한 줄 / 무엇을 확인하는지 한 줄" 만. 수식·코드 세부는 CLI 프롬프트 안에만
+- **T4b-4b-2** (③ 박스를 시뮬레이터에 연결): u 상태 (N,4)×2·reset 때 0·_apply_action 첫 줄에서 갱신·κ' = u_x/σ_x, tanα' = u_y/σ_y 기록.
+  서버: 기존 키 불변(u 는 아직 force 에 안 씀), κ' ≈ 실제 slip ratio, tanα' ≈ v_lat/|v|, |κ'|·|tanα'| ≤ 1
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
