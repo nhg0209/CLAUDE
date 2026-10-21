@@ -1296,6 +1296,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 합의 요약(확인 대기): on 모드에서 매 substep u 갱신 직후 damped_tire_force 로 (f_x, f_y) → F = f_x·e_fwd + f_y·e_lat 를 바퀴 body 의 p_w − r·e_z 에
     instantaneous_wrench_composer(is_global, positions)로 가한다. 바퀴 shape 의 PhysX 마찰만 0, μ 는 타이어 식으로. off 모드는 force 없이 u 기록만
   - T5 단계(안): T5-1 cfg `tire_model` 스위치 + 검사 → T5-2 on 모드 바퀴 shape 마찰 0 → T5-3 force 계산·적용·기록 → T5-4 check_env `--tire-model`·모드별 기대값
+  - ✅ 합의 요약 사용자 동의 (2026-10-21)
+- **T5 전 결정 2/3 — lateral stiffness 임시값 (1단계, 대기)** 그림 `attachments/tire/lat_stiffness_options.png`
+  - (a) F1TENTH 그대로 앞 4.72·뒤 5.46 /rad → saturation 32.5° · (b) F1TENTH 선형 모델이 μ 에 닿는 각(앞 12.1°·뒤 10.5°)에서 saturation → 앞 13.94·뒤 16.18 ·
+    (c) saturation 7°, 앞뒤 비율은 F1TENTH → 앞 24.43·뒤 28.26
+  - K_us 1.64 / 0.57 / 0.32 °/g · 0.5 g 에서 앞 α 6.1 / 2.1 / 1.2° · 3 m/s lateral τ 13.9 / 9.1 / 8.1 ms · C_α/C_κ(ν, 작은 slip 의 force 방향 비) 0.24 / 0.70 / 1.22
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
