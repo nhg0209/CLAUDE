@@ -1349,6 +1349,17 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 고침(제안): 모멘트를 우리가 world 에서 직접 계산 `T = (p_c − p_w) × F = (−r·e_z) × F`, composer 에는 forces·torques 를 is_global=True 로
     (positions 없이 — 둘 다 quat_rotate_inv 로 올바르게 회전). 전제: 바퀴 COM = link 원점(URDF inertial origin 0) — 초기화에서 검사.
     설계 (가)(바퀴 body 의 접지점에 force)는 그대로, 구현 방법만 바뀜. 6.2 이주 뒤에는 positions 방식으로 되돌릴 수 있음
+- ✅ **T5-3c** `6126c4f` dev 확인. **서버 PASS — 타이어 모델이 차를 바르게 민다**
+  - off 불변. on 직진: a = 1.993 (명령 2.0), M·a = Σf_x = 6.915 N, κ' = slip ratio = 1.09% (네 바퀴 같음 — 센터 잠김·직진), f_y 0
+    f_x 앞 1.783·뒤 1.675 — 앞이 하중이 적은데 더 큼: C_κ 가 load 와 무관한 상수(PhysX longStiff, rest load 로 정함)라 같은 κ' 에서 K = C_κ·κ'/F_z 가
+    앞에서 더 큼(계산 1.784·1.674 와 일치). 실제 타이어(C_κ ∝ F_z)라면 뒤가 더 많이 낸다 — 단순화의 결과
+  - on 원(δ 0.3): tanα' 네 바퀴 음수 ✔(앞 −0.018·−0.014, 뒤 −0.007·−0.006). 차체 y 방향 힘 합 = 앞 f_y·cosδ + 앞 f_x·sinδ + 뒤 f_y = 2.97 N
+    ≈ M·a_y = 3.47·0.969·0.877 = 2.95 N ✔. f_x 앞 −2.93·뒤 +3.08 — 센터 잠김 싸움(앞 경로가 4.75% 길어 앞 κ < 0·뒤 κ > 0, C_κ·Δκ ≈ 3 N;
+    "1 N 안팎" 예측은 계산 없이 쓴 틀린 값). 곡률 yaw/vx = 0.905 (기하 0.937) — K_us 예측 0.934 보다 훨씬 understeer:
+    측정 slip angle 로 tan(δ − (|α_f| − |α_r|))/L = tan(0.3 − 0.00945)/0.33 = 0.906 → 0.1% 로 재현. 원인은 센터 잠김의 앞 drag 가
+    앞에 바깥 방향 성분을 만들어 앞 lateral force·slip angle 이 커지는 것(tight corner braking). bag 원 주행과 비교할 항목
+  - 작은 메모: env.py 주석이 spin 반작용(−r·f_x)을 "구름저항" 이라 부름 — rolling resistance 와 다른 것, 나중에 정정
+- **T5-4** check_env `--tire-model` (두 장면에 전달, 머리말에 모드). on 모드 ③ μ ≤ 0.5 는 보고만(참고값 y₂·μ·g, PASS/FAIL 은 ⑦), ①④⑤⑥ 그대로 판정
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
