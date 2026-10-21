@@ -413,6 +413,7 @@ cd IsaacLab
 > 드라이버가 바뀌면 순서: `nvidia-smi` 확인 → `render_check.py` → `verify_env.sh` 물리 기준값 → check_env(⑥ 0.5019·③ 9.665 등 타이어 작업 기준값) → 스트리밍.
 > 상세: [[질문 로그]] 2026-10-21 「UI 직접 조작」·「드라이버 확인·R580」
 > 595.84 유지 대안: Isaac Sim 6.2(595.58.03 공식) + Isaac Lab v3.0.0 이주(major — Python 3.12·warp 배열·URDF importer 재작성) — 「595.84 그대로 렌더」 참고
+> ✅ **결정 (2026-10-21)**: 드라이버 595.84 그대로, R580 요청 안 함. 9차·시뮬레이션 환경 구성 완료 뒤(SAC·reward 직전) Isaac Sim 6.2 + Isaac Lab v3.0.0 이주 → 그 뒤 WebRTC UI ([[rl-racing 구조]] §8-6)
 
 `ML_SERVER_USER.md`: *"다른 PC에서 이 서버의 컨테이너로 접속 → 안 됨"*
 

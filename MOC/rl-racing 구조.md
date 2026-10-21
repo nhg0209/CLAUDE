@@ -1209,6 +1209,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **R3** env_cfg 필드 4개 (전부 spawn): `tire_relaxation_length_long_m` 0.02 · `tire_relaxation_length_lat_m` 0.02 (`real.tire.*`) ·
   `tire_carcass_damping` 15.0 (`real.tire.carcass_damping`) · `tire_deflection_cap` 1.0 (`sim.tire.deflection_cap`). 검사: σ > 0 (R1 이 σ 로 나눔), c ≥ 0 (0 = 감쇠 끔), cap > 0.
   T3 의 낡은 eps 주석 정정 — slip_eps 는 이제 순간 slip 기록·진단용(T4a)만, 근거 식은 질량 몫 포함 dt·C_κ·(r²/J + 1/m) → 진동 없음 3.0 m/s · 안정 1.5 m/s. 값(2.0·0.5)은 그대로
+- ✅ R2b dev push 확인, diff 확인함 · ✅ **R3** `98e33d9` (push 전) — 278 passed·12 skipped (+1). `__post_init__` 음수·0 검사는 isaaclab 없어 줄만 확인 → push 후 diff 로 확인
+- **Isaac Sim 6.2 + Isaac Lab v3.0.0 이주 결정 (2026-10-21, 사용자)**: 9차·시뮬레이션 환경 구성이 끝난 뒤, SAC·reward 구현 직전. 드라이버 595.84 유지(R580 요청 안 함)
+  - 검토: 그때까지 Isaac 렌더·UI 없음(WebRTC 도 이주 뒤) · 9차에서 sim 과 bag 을 비교해 맞춘 값은 PhysX 가 바뀌면 다시 확인(bag 에서 직접 피팅한 값은 그대로) ·
+    Isaac Lab 접점을 env.py 에 모아 두는 구조 유지(tire·actuation·geometry 는 torch 만) · T5 외력 API 는 `permanent_wrench_composer` 가 2.3.2·3.0 둘 다 있음
+    (`set_external_force_and_torque` 는 둘 다 deprecated) · 6.2 + 595.84 는 미확인(공식 595.58.03) → 이주 첫 단계 render_check · 합격 기준 = 지금 기준값 재현
+- **T4a** 를 둘로: T4a-1 geometry.wheel_lateral_axis_world (z_up × fwd, slip angle 과 lateral force 공통 축, 순수 함수) → T4a-2 env 기록(v_long·v_lat·순간 κ·α, 동작 불변)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
