@@ -1247,6 +1247,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   (별도 커밋). off = 지금 PhysX 마찰, on = 바퀴 PhysX 마찰 0 + 타이어 외력 + 접촉 센서 강제. μ DR 이 가는 곳이 모드마다 다름(_apply_mu).
   u 계산·기록은 두 모드 모두(off 에서는 차에 안 쓰고 "타이어 모델이었다면" 을 기록만). check_env `--tire-model` 로 ③(②) 기대값만 모드별, ①④⑤⑥ 공통
 - ⚠️ lateral 임시값 4.718/rad(F1TENTH 선형 모델)은 brush 에서 saturation 32.5° — T5 전에 유지/조정 따로 결정 ([[질문 로그]] 「stiffness」)
+- ✅ **T4b-1** `c305a05` (push 전) — 297 passed·12 skipped (+11)
+- **T4b-2** env 초기화: sim 의 바디 질량·COM(`body_com_pos_w`, base 좌표로)으로 x_com·wheelbase 를 재서 rest load, 바퀴별 (N,4) stiffness,
+  안정 확인 dt·c·(r²/J + M/4 의 역수) < 1 (0.264 예상, 넘으면 ValueError), `tire_params()` → meta.json "tire". 서버 예상: 앞 8.837·뒤 8.183 N (⑥ 0.5192),
+  C_κ 앞 176.7·뒤 163.7, C_α(rest) 앞 41.69·뒤 44.65
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
