@@ -1324,6 +1324,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 합의 요약은 사용자가 이어서 T5-0 을 진행 → 확인으로 기록 (μ 1.0·0.5, 4 s, 5% 는 제안값 그대로)
 - ✅ **T5-0** `81ed07c` (push 전) — 308 passed·12 skipped (+1). 서버 확인은 T5-1 과 묶음(초기화 출력 C_α(rest) 앞 123.21·뒤 132.44)
 - **T5-1** env_cfg `tire_model: bool = False` + CAR_YAML_KEYS (sim.tire.model, spawn) + 검사(tire_model 이면 wheel_contact_sensors 필수) + env 초기화 출력에 모드 표시
+- ✅ **T5-1** `83d2853` dev push 확인(T5-0 `81ed07c` 도), diff 확인 — 310 passed. 서버: "타이어 모델: off" 확인, C_α(rest) 줄은 붙여 넣은 출력에 없어 다시 확인 요청
+- **T5-2** on 모드에서 바퀴 shape 만 PhysX 마찰 0: Isaac Lab events.py randomize_rigid_body_material 과 같은 방법(link_paths 마다 rigid body view 의
+  max_shapes → body 별 shape 수)으로 바퀴 shape 마스크, `_apply_mu` 가 on 이면 바퀴 0·나머지 μ. drive.py `--tire-model` 플래그.
+  서버: off 는 t4b4b_accel 과 비트 단위 같음 · on(외력은 아직 없음)은 바퀴만 헛돌고 차가 거의 안 움직임(vx ≈ 0), κ' 가 곧 상한 1
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
