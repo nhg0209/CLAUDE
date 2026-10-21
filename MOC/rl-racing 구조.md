@@ -1367,6 +1367,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **T5-5 를 둘로**: T5-5a `rl_racing/eval/tire_check.py` 순수 함수(numpy) — 0.1 s 구간마다 F_meas = M·Δv/Δt 대 F_model 평균, err = |차|/(μMg),
   정점 전 구간(κ_min ≤ max|κ'| < 0.15)만 판정, 정점 전 구간이 0 개면 FAIL(all([]) 함정) → T5-5b check_env ⑦(torque 모드 램프 4 s, μ 1.0·0.5,
   F_model = Σ tire.damped_tire_force(로그의 κ'·tanα'·F_z, du = 0 — 느린 램프라 damping 항 ≈ 0.01 N)
+- ✅ **T5-5a** `3296089` (push 전) — 332 passed (+9; numpy 전용 경계 검사 추가)
+- **T5-5b** check_env ⑦ (on 모드 flat 만, off 는 건너뜀): torque 모드, 바퀴 몫 0 → 0.629 N·m 를 4 s 동안, μ 1.0·0.5. 매 step F_model = Σ damped_tire_force(du=0),
+  compare_slip_curve 로 판정, bin 표와 CSV(build/check_env/slip_curve_mu*.csv) 저장. 정점 도달 예상 μ1 ≈ 2.75 s · μ0.5 ≈ 1.37 s
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
