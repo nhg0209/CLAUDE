@@ -1251,6 +1251,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **T4b-2** env 초기화: sim 의 바디 질량·COM(`body_com_pos_w`, base 좌표로)으로 x_com·wheelbase 를 재서 rest load, 바퀴별 (N,4) stiffness,
   안정 확인 dt·c·(r²/J + M/4 의 역수) < 1 (0.264 예상, 넘으면 ValueError), `tire_params()` → meta.json "tire". 서버 예상: 앞 8.837·뒤 8.183 N (⑥ 0.5192),
   C_κ 앞 176.7·뒤 163.7, C_α(rest) 앞 41.69·뒤 44.65
+- ✅ **T4b-2** `8f9dbd8` dev push 확인, diff 확인 — 298 passed. **서버 PASS**: rest load 앞 8.8375·뒤 8.1828 N (x_com 0.1713 / L 0.3300 → 앞 비율 0.5191, ⑥ 0.5192),
+  C_κ 176.75·163.657, C_α(rest) 41.6953·44.6473, 안정 0.2640. 작은 메모: 안정 조건 주석의 "R1 이 이 조건 아래서 안정" 은 정확히는 damping force 가
+  다음 step 에 가해지는 명시 루프의 조건(R1 은 exp 정확해라 조건 없이 안정) — T4b-4 때 같이 고침. ast 테스트가 g 를 인라인하게 강제한 것은 테스트가 형태까지 묶은 탓
+- **T4b-3** 바퀴 속도 분해를 `_wheel_ground_velocity()` 로 정리(ω·v_long·v_lat·fwd·lat 축) — get_privileged 가 쓰고 T4b-4 의 substep 갱신도 쓴다.
+  서버 판정: T4a-2 와 같은 두 주행을 다시 돌려 priv 값이 비트 단위로 같음(⑤ 결정성)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
