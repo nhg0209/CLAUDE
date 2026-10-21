@@ -407,6 +407,12 @@ cd IsaacLab
 > [Isaac Sim 5.1.0 요구사항](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html) ·
 > [포럼: RTX PRO 6000 + 595](https://forums.developer.nvidia.com/t/isaac-sim-5-1-0-crashes-shortly-after-startup-on-windows-server-2025-with-rtx-pro-6000-blackwell/370054)
 
+> [!note] 2026-10-21 — 사용자 선택: Isaac Sim UI 직접 조작은 **WebRTC Streaming Client** 로 (선택 이유 한 줄 확인 대기)
+> 선결 조건 셋: ① 드라이버 R580 open (관리자 — 재부팅·전원 영향, `nvidia-smi` CUDA 13.2 → 13.0, container toolkit 은 지우면 안 됨)
+> ② PC → 서버 TCP 49100·UDP 47998 (같은 네트워크면 직접, 밖이면 VPN·포트 개방) ③ GPU 브로커 할당(`gpu take`) — GUI 는 기동만으로 수 GB.
+> 드라이버가 바뀌면 순서: `nvidia-smi` 확인 → `render_check.py` → `verify_env.sh` 물리 기준값 → check_env(⑥ 0.5019·③ 9.665 등 타이어 작업 기준값) → 스트리밍.
+> 상세: [[질문 로그]] 2026-10-21 「UI 직접 조작」·「드라이버 확인·R580」
+
 `ML_SERVER_USER.md`: *"다른 PC에서 이 서버의 컨테이너로 접속 → 안 됨"*
 
 Isaac Sim WebRTC 스트리밍은 **외부 → 컨테이너 inbound** 이고 **UDP** 를 쓴다.
