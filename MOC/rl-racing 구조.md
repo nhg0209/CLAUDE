@@ -1204,6 +1204,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   (사용자가 R2a 를 진행 → 합의 요약·c 15 확인으로 기록)
 - **R2b** `cornering_stiffness`(그 순간 load 의 C_α, michigan_force 안의 식과 같음) · `series_factor`(β = |v|·c/C, C = 0 이면 0)
 - T4b 메모: 바퀴가 떠 있으면(normal load 0) contact 가 없으니 carcass deflection u 를 0 으로 되돌릴지 — T4b 프롬프트 전에 확인
+- ✅ R2a dev push 확인, diff 확인함 (부호·상한 적용 후 du·mag 0 처리 모두 프롬프트대로) · ✅ **R2b** `f914848` (push 전) — 277 passed·12 skipped (+12).
+  CLI 가 series_factor 테스트 하나를 atol 1e-9 로 썼다가 float32 정밀도로 실패 → 지시대로 1e-6 으로 고침 (그 테스트는 float32 입력 — env 텐서도 float32 라 문제 아님, push 후 diff 에서 확인)
+- **R3** env_cfg 필드 4개 (전부 spawn): `tire_relaxation_length_long_m` 0.02 · `tire_relaxation_length_lat_m` 0.02 (`real.tire.*`) ·
+  `tire_carcass_damping` 15.0 (`real.tire.carcass_damping`) · `tire_deflection_cap` 1.0 (`sim.tire.deflection_cap`). 검사: σ > 0 (R1 이 σ 로 나눔), c ≥ 0 (0 = 감쇠 끔), cap > 0.
+  T3 의 낡은 eps 주석 정정 — slip_eps 는 이제 순간 slip 기록·진단용(T4a)만, 근거 식은 질량 몫 포함 dt·C_κ·(r²/J + 1/m) → 진동 없음 3.0 m/s · 안정 1.5 m/s. 값(2.0·0.5)은 그대로
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
