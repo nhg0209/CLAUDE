@@ -1321,6 +1321,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 합의 요약(확인 대기): off 모드는 지금 ③ 그대로. on 모드에 새 시험 ⑦ — flat 직진, μ 1.0·0.5, 토크 0 → 최대를 천천히(예: 4 s),
     매 step F_meas = M·a_x 대 F_model = Σ(Michigan(κ'_i, F_z,i) + c·du_i/dt, 상한) → 정점 전 구간 |차|/(μ·M·g) ≤ 5% 면 PASS, 정점·정점 뒤는 보고.
     ①④⑤⑥ 공통, ②·③ μ=1 보고. lateral 은 나중에 속도 올리는 원 주행(보고)
+  - 합의 요약은 사용자가 이어서 T5-0 을 진행 → 확인으로 기록 (μ 1.0·0.5, 4 s, 5% 는 제안값 그대로)
+- ✅ **T5-0** `81ed07c` (push 전) — 308 passed·12 skipped (+1). 서버 확인은 T5-1 과 묶음(초기화 출력 C_α(rest) 앞 123.21·뒤 132.44)
+- **T5-1** env_cfg `tire_model: bool = False` + CAR_YAML_KEYS (sim.tire.model, spawn) + 검사(tire_model 이면 wheel_contact_sensors 필수) + env 초기화 출력에 모드 표시
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
