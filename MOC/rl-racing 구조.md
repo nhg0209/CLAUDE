@@ -1215,6 +1215,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     Isaac Lab 접점을 env.py 에 모아 두는 구조 유지(tire·actuation·geometry 는 torch 만) · T5 외력 API 는 `permanent_wrench_composer` 가 2.3.2·3.0 둘 다 있음
     (`set_external_force_and_torque` 는 둘 다 deprecated) · 6.2 + 595.84 는 미확인(공식 595.58.03) → 이주 첫 단계 render_check · 합격 기준 = 지금 기준값 재현
 - **T4a** 를 둘로: T4a-1 geometry.wheel_lateral_axis_world (z_up × fwd, slip angle 과 lateral force 공통 축, 순수 함수) → T4a-2 env 기록(v_long·v_lat·순간 κ·α, 동작 불변)
+- ✅ **T4a-1** `4b48fe1` (push 전, R3 `98e33d9` 도 아직 push 전) — 285 passed·12 skipped (+7). 이주 합의 요약은 이의 없어 확정으로 기록
+- **T4a-2** get_privileged 에 `wheel_v_long`·`wheel_v_lat`·`tire_kappa`·`tire_alpha` (cfg 의 r_e·eps 사용, wheel_slip 그대로). ast 테스트로 연결만 확인, 서버에서 값 확인
+  - 서버 판정: 분자 검산 κ·(|v|+ε_long) = wheel_slip·max(|v|,0.1) (같은 분자, float32 오차 안) = PASS 기준
+  - 예측(관찰): 좌회전 원 δ 0.3·1 m/s — α 는 음수 쪽(바깥으로 밀림)이고 아주 작다(지금은 PhysX rigid friction 이라 lateral sliding 이 거의 없음),
+    센터 잠김 때문에 앞 κ < 0(끌림)·뒤 κ > 0(밂) / 직진 가속 2 m/s² — κ > 0 네 바퀴, |α|·|v_lat| ≈ 0
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
