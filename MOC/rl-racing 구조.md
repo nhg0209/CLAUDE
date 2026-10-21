@@ -1339,6 +1339,16 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **T5-3b** on 모드에서 `instantaneous_wrench_composer.add_forces_and_torques(forces=F, positions=p_c, body_ids=바퀴, is_global=True)`
   (wrench_composer.py: 위치는 link 원점 기준 — 바퀴는 link 원점 = COM). 서버: off 는 t53a 와 비트 단위 같음 · on 직진 a ≈ 2 (①), M·a ≈ Σf_x(이제 둘 다 실제),
   on 원(δ 0.3, 1 m/s)에서 **tanα' < 0 네 바퀴**(T4a-2 에서 미뤄 둔 판정 — 좌회전이면 바깥으로 밀려 α<0, f_y>0 왼쪽) · Σf_y > 0
+- ❌ **T5-3b** `af579fd` 서버 FAIL — off 불변은 PASS. on 직진: a = 5.905 (명령 2.0), M·a 20.49 ≈ Σf_x 20.58 (직선 force 전달은 맞음), κ' 4.5%.
+  on 원: f_x 가 바퀴마다 ±6~7 N 으로 서로 싸움, vx 0.79. → **바퀴 회전을 막는 모멘트(−r·f_x)가 빠진 것과 똑같은 거동**
+  (모터 토크만으로 바퀴가 τ/J·r = 0.131/1.09e-3×0.0508 = 6.1 m/s² 로 빨라지고 차가 그 뒤를 따라감 — 측정 5.9)
+  - **원인: Isaac Lab 2.3.2 버그** `utils/warp/kernels.py:310-324, 362-409` — is_global=True 일 때 위치 오프셋은 `position − link_position`
+    (**world 좌표 그대로**)인데 force 는 `quat_rotate_inv(link_quat, F)`(**link 좌표**) 로 돌린 뒤 둘을 cross → 좌표계가 섞인다.
+    바퀴 link 는 spin 축으로 계속 돌기 때문에 spin 성분이 −r·f_x·cosθ 가 되어 평균 0 → 회전 반작용이 사라짐. roll·pitch 성분도 틀림.
+    main 브랜치는 고쳐져 있다(world 에서 cross(P, F) − cross(com, F) 뒤 회전, `compose_wrench_to_body_frame`) — 3.0 태그에서도 확인할 것
+  - 고침(제안): 모멘트를 우리가 world 에서 직접 계산 `T = (p_c − p_w) × F = (−r·e_z) × F`, composer 에는 forces·torques 를 is_global=True 로
+    (positions 없이 — 둘 다 quat_rotate_inv 로 올바르게 회전). 전제: 바퀴 COM = link 원점(URDF inertial origin 0) — 초기화에서 검사.
+    설계 (가)(바퀴 body 의 접지점에 force)는 그대로, 구현 방법만 바뀜. 6.2 이주 뒤에는 positions 방식으로 되돌릴 수 있음
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
