@@ -1425,6 +1425,16 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   1단계로 남은 두 결정: D1 이번 범위 (가) env_cfg 의 CAR_YAML_KEYS 24개만 (나) usd 범주(치수·질량·관성)까지 전부 (다) cfg 먼저 → 이어서 usd /
   D2 YAML 과 코드 기본값의 관계 (가) YAML 이 유일한 출처·cfg 생성 때 자동 로드 (나) 코드 기본값 유지 + YAML 덮어쓰기 + 일치 테스트
   (다) cfg 기본값 자리 None, 로더가 채움. 지금 흩어진 곳: vehicle.py·urdf_gen PARAMS·racecar_cfg·env_cfg, 중복 4개(조향 한계·조향 속도·서보 토크·바퀴 반지름)
+- **결정 (2026-10-23, 사용자): D1 (다) env_cfg 24개 먼저 → 이어서 usd 범주 / D2 (가) YAML 이 유일한 출처** (이유 한 줄 확인 대기)
+  - 검토: 단계마다 확인이 작고(규칙 6 — check_env 그대로), 숫자가 한 곳. 놓친 점 —
+    ① **None 의 두 뜻 충돌**: motor_torque_max_nm·wheel_effort_safety_nm 은 지금 None = "코드가 계산". "cfg 생성 때 빈 칸을 YAML 로 채움" 으로 만들면
+    "안 줌" 과 "계산해라" 가 구분 안 됨 → 수정안: env_cfg 모듈이 import 될 때 config/car.yaml 을 읽어 **필드 기본값**으로 쓴다(빈 칸 채우기 아님).
+    YAML 의 `auto` = 코드 계산(None). 명시한 인자는 그대로 우선. 다른 YAML 은 로더 함수로 kwargs 를 만들어 넘김
+    ② 지금 ast 테스트 몇 개가 env_cfg.py 의 기본값 숫자를 읽음(센서 True·tire_model True·C_α 3/tan(1/C_S)) → car.yaml 을 읽게 바꿔야 함
+    ③ 1단계 동안은 usd 범주 값이 아직 파이썬에 있음(두 방식 공존, 중복 4개도 2단계까지 남음) ④ randomization 섹션은 DR 결정 전이라 비워 둠
+  - 1단계 작업(안): C1 config/car.yaml + 순수 로더 `common/car_config.py`(스키마 검사, auto→None) + "YAML 값 = 지금 기본값" 테스트 →
+    C2 env_cfg 24개 기본값을 YAML 에서 · ast 테스트 정리 → C3 `--set` 덮어쓰기·meta.json 에 해석된 값과 YAML 해시, `--steer-*` 정리 →
+    C4 "안 잰 값" 목록 출력 → 서버: check_env 두 모드 숫자 그대로
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
