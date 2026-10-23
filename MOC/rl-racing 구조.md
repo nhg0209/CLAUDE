@@ -1373,6 +1373,14 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **T5-5b** `60b4281` dev 확인. **서버: ⑦ slip 곡선 PASS** (μ 1.0·0.5 모두 — 판정 함수가 n_pre > 0 과 정점 전 err ≤ 5% 를 함께 요구하므로
   PASS 자체가 둘 다 만족한다는 뜻). check_env flat on 전체 통과(①⑥⑦). T5-0 C_α(rest) 123.2072·132.4387 서버 확인됨. on 모드 ⑥ 0.5019·0.5192 불변
   - bin 표·CSV(/workspace/build/check_env/slip_curve_mu1.0.csv·mu0.5.csv)는 받아서 그림으로 남길 것
+  - ⑦ 상세: μ 1 n_pre 37·max_err 0.0021, μ 0.5 n_pre 21·max_err 0.0052. 그림 `attachments/tire/slip_curve_check7.png` (CSV `attachments/tire/check7/`)
+    · 정점 전 F_meas ≈ F_applied ≈ F_model. F_applied − F_model ≈ 0.022 N = 4·c·σ·dκ'/dt (식에서 뺀 damping 항) 그대로
+    · μ 0.5 정점 F = 17.02 N = μMg (F/(μMg) 1.000, κ' 0.12~0.16), 정점 뒤 μ-slip 그래프대로 감소(κ' 0.36 에서 0.957, 그래프 0.951)
+    · κ' > 0.55 (t > 3.65 s): 측정이 식에서 벌어지고 결국 음수 — 가설: 완전 wheelspin 으로 friction circle 을 longitudinal 이 다 써서 lateral grip 이 없어
+      차가 돌기 시작 → 차체 좌표 M·Δv_x/Δt 는 회전 항(r·v_y) 때문에 force 측정이 아니게 됨. 식 쪽 force 가 κ'=1 에서 줄어드는 것도 tanα' 가 커진 combined slip.
+      확인하려면 그 구간 yaw rate·v_y 필요(선택)
+    · 정점 시각 예측 정정: 1.37 s 는 바퀴 회전 관성을 뺀 값 — 지면 force 는 τ_total/r 의 M/m_eff 몫이라 ×(m_eff/M = 1.49) → 램프 시작 후 2.0 s
+      (+정착 0.5 = 2.5 s), 측정 ≈ 2.8 s(정점 근처 brush 포화가 느림). μ 1 은 같은 식으로 4.1 s > 램프 4 s → 정점에 안 닿음(κ' 최대 0.115) 과 일치
 - **T5-6 (합의대로 검증 뒤 기본값 on)**: env_cfg `tire_model` 기본 True. drive.py·check_env 의 `--tire-model` 은 store_true 라 그대로 두면
   cfg 기본값을 덮어 off 가 됨 → `argparse.BooleanOptionalAction`(기본 True, `--no-tire-model` 로 off)
 
