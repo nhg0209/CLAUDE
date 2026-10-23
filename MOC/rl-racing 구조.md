@@ -1383,6 +1383,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       (+정착 0.5 = 2.5 s), 측정 ≈ 2.8 s(정점 근처 brush 포화가 느림). μ 1 은 같은 식으로 4.1 s > 램프 4 s → 정점에 안 닿음(κ' 최대 0.115) 과 일치
 - **T5-6 (합의대로 검증 뒤 기본값 on)**: env_cfg `tire_model` 기본 True. drive.py·check_env 의 `--tire-model` 은 store_true 라 그대로 두면
   cfg 기본값을 덮어 off 가 됨 → `argparse.BooleanOptionalAction`(기본 True, `--no-tire-model` 로 off)
+- ✅ **T5-6** `ca78864` dev 확인, 서버에서 기본 on·`--no-tire-model` off 확인(사용자). **타이어 모델이 기본 동작이 됨** (off = PhysX 마찰 비교 모드)
+- **T7** 바퀴별 공중 시간 누적 `wheel_airborne_s` (N,4) = Σ_substep dt·[F_z = 0], reset 때 0, priv 기록 — 결정 (1)(공중에서도 u 그대로) 의 재검토 근거.
+  같이: env.py·geometry.py 주석의 "구름저항" → spin 반작용(구동 토크와 맞서는 모멘트, rolling resistance 와 다름)
+- 대기: Foxglove 선택지 (가) npz→MCAP 변환 (나) 실시간 WebSocket (다) console 유지 — 사용자 답 대기. console 접속 실패는 컨테이너 안에서 띄운 탓(호스트에서 실행)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
