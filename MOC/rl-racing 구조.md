@@ -1446,6 +1446,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     → **실측값은 아직 하나도 없다** (C4 목록이 bag·조향 계단 시험의 할 일 목록이 된다)
 - ✅ **C1a `c7b1388`** config/car.yaml(24개, 값 불일치 0 — 일회성 대조) + pyproject pyyaml · **C1b `8b8693b`** `common/car_config.load_car_yaml()`(점 경로 평탄화·잎 키 집합·status·auto→None·list→tuple·`auto` 아닌 문자열 거부) + 테스트 10개, 원칙 2 문구에 PyYAML — 352 passed, status 분포 measured 1·stack 2·unmeasured 2·estimate 9 (기대 그대로)
   - 검토: 그대로 통과. 작은 점 두 개(기록만) — ① 빈 파일·`real:`(null) 이면 ValueError 가 아니라 TypeError/AttributeError (어차피 import 때 크게 실패) ② car.yaml 머리 주석 "아무 코드도 읽지 않는다·기록용 스냅샷" 은 C2 에서 고칠 것
+- ✅ **C1c `4614886`** 테스트 3개 — 키 집합 일치 / 24개 YAML == env_cfg 기본값(ast, 이름은 racecar_cfg 에서 풀기 — C2 에서 연결 확인으로 바뀔 과도기) / 중복 2개 == racecar_cfg(2단계에서 지움). 355 passed, 일부러 깨기(tau 0.07·rate_max 3.3) 실패 메시지 확인
+  - C2 를 둘로: **C2a** CAR_YAML_KEYS 를 클래스 위로(순수 이동) + 순서 테스트 → **C2b** 출처 전환(24개 기본값·import 정리·거짓이 된 주석·car.yaml 머리 주석·테스트 교체, 한 커밋 — 테스트가 같이 바뀌어야 초록 유지)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
