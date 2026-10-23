@@ -1370,6 +1370,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **T5-5a** `3296089` (push 전) — 332 passed (+9; numpy 전용 경계 검사 추가)
 - **T5-5b** check_env ⑦ (on 모드 flat 만, off 는 건너뜀): torque 모드, 바퀴 몫 0 → 0.629 N·m 를 4 s 동안, μ 1.0·0.5. 매 step F_model = Σ damped_tire_force(du=0),
   compare_slip_curve 로 판정, bin 표와 CSV(build/check_env/slip_curve_mu*.csv) 저장. 정점 도달 예상 μ1 ≈ 2.75 s · μ0.5 ≈ 1.37 s
+- ✅ **T5-5b** `60b4281` dev 확인. **서버: ⑦ slip 곡선 PASS** (μ 1.0·0.5 모두 — 판정 함수가 n_pre > 0 과 정점 전 err ≤ 5% 를 함께 요구하므로
+  PASS 자체가 둘 다 만족한다는 뜻). check_env flat on 전체 통과(①⑥⑦). T5-0 C_α(rest) 123.2072·132.4387 서버 확인됨. on 모드 ⑥ 0.5019·0.5192 불변
+  - bin 표·CSV(/workspace/build/check_env/slip_curve_mu1.0.csv·mu0.5.csv)는 받아서 그림으로 남길 것
+- **T5-6 (합의대로 검증 뒤 기본값 on)**: env_cfg `tire_model` 기본 True. drive.py·check_env 의 `--tire-model` 은 store_true 라 그대로 두면
+  cfg 기본값을 덮어 off 가 됨 → `argparse.BooleanOptionalAction`(기본 True, `--no-tire-model` 로 off)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
