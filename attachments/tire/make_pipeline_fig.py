@@ -39,9 +39,9 @@ xs = [0.2, 3.35, 6.5, 9.65, 12.8]
 box(xs[0], Y, W, H, "① 바퀴 상태 읽기", "ω : 바퀴가 도는 속도\nv : 바퀴가 실제로\n움직이는 속도", "끝남", DONE)
 box(xs[1], Y, W, H, "② 미끄러짐", "slip velocity\n= 바퀴 둘레 속도 − v\n(얼마나 헛도나·밀리나)", "끝남", DONE)
 box(xs[2], Y, W, H, "③ 고무 휨 u", "미끄러진 만큼 휘고\n굴러가면서 풀린다\n(u = 고무가 휜 양)",
-    "계산 함수 끝남\n시뮬레이터에 연결 중 ◀ 지금", DOING)
-box(xs[3], Y, W, H, "④ 타이어 힘", "휜 양 → 힘\n많이 휘면 한계(μ·Fz)\n에서 더 안 늘어남", "계산 함수 끝남\n시뮬레이터 연결 남음", TODO)
-box(xs[4], Y, W, H, "⑤ 차에 힘 가하기", "계산한 힘을 바퀴\n접지점에 가한다\n(PhysX 바퀴 마찰은 0)", "남음 (on/off 스위치로)", TODO)
+    "끝남", DONE)
+box(xs[3], Y, W, H, "④ 타이어 힘", "휜 양 → 힘\n많이 휘면 한계(μ·Fz)\n에서 더 안 늘어남", "끝남", DONE)
+box(xs[4], Y, W, H, "⑤ 차에 힘 가하기", "계산한 힘을 바퀴\n접지점에 가한다\n(PhysX 바퀴 마찰은 0)", "끝남 (기본 on, --no-tire-model 로 off)", DONE)
 for i in range(4):
     arrow(xs[i] + W + 0.02, Y + H / 2, xs[i + 1] - 0.02, Y + H / 2)
 arrow(xs[4] + W / 2, Y - 0.35, xs[0] + W / 2, Y - 0.35, color="#999")
@@ -54,7 +54,7 @@ arrow(5.8, IY - 0.02, xs[2] + W * 0.55, Y + H + 0.02, color="#2e8b57")
 arrow(10.4, IY - 0.02, xs[2] + W * 0.8, Y + H + 0.02, color="#2e8b57")
 arrow(7.2, IY - 0.02, xs[3] + W * 0.25, Y + H + 0.02, color="#2e8b57")
 arrow(10.9, IY - 0.02, xs[3] + W * 0.5, Y + H + 0.02, color="#2e8b57")
-ax.text(0.25, 6.25, "타이어 모델 — 매 물리 step(5 ms)마다 하는 계산", fontsize=14, fontweight="bold")
+ax.text(0.25, 6.25, "타이어 모델 — 매 물리 step(5 ms)마다 하는 계산 (2026-10-23 완료)", fontsize=14, fontweight="bold")
 for i, (c, t) in enumerate(((DONE, "끝남"), (DOING, "지금 하는 중"), (TODO, "남음"))):
     ax.add_patch(FancyBboxPatch((12.2 + i * 1.5, 6.12), 0.3, 0.3, boxstyle="round,pad=0.02", fc=c, ec=EDGE[c]))
     ax.text(12.58 + i * 1.5, 6.27, t, va="center", fontsize=9.5)

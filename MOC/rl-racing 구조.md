@@ -1405,6 +1405,20 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     기울기 0.67°/g 는 cornering stiffness 예측 0.57°/g 와 가까움. 한계 근처(0.82 g)에서 δ_us 1.37° 로 급증(brush saturation)
   - μ 0.5 의 4 m/s: a_y 0.488 g ≈ μg 에서 막히고 반지름이 거의 두 배(ρ 0.315) — **한계에서 understeer(앞이 먼저 포화), spin 아님**.
     앞이 먼저 포화하는 이유: per-load C_α 가 뒤가 큼(16.18 대 13.94) + 앞 friction 일부를 센터 잠김 drag 가 씀(combined slip)
+- ✅ **종합 서버 확인 (2026-10-23)**: flat on ①⑥⑦ PASS(⑧ 보고) · flat off ①③⑥ PASS · map on ④⑤ PASS · map off ④⑤ PASS
+
+> [!abstract] 타이어 모델 완료 요약 (2026-10-23) — 그림 `attachments/tire/pipeline.png`
+> **무엇**: 바퀴의 PhysX 마찰 대신 PhysX Vehicles 의 Michigan 식(brush + μ-slip 3점 + load 의존 C_α) + 직렬 carcass relaxation(σ 2 cm, c 15 N·s/m)
+> 으로 force 를 계산해 바퀴 body 의 접지점에 외력으로 가한다. **기본 on** (`--no-tire-model` = PhysX 마찰 비교 모드). 5 ms 마다 ① 바퀴 속도 → ② slip velocity
+> → ③ u 갱신 → ④ force(상한 μ_eff·F_z) → ⑤ 외력. 입력 F_z 는 접촉 센서(기본 켬), C 는 sim 의 질량·COM 으로 잰 rest load × per-load 값
+> **코드**: tire.py(순수 함수) · geometry.py(lateral 축, 접지점 모멘트) · env.py(초기화·u·force·적용·shape 마찰 0·공중 시간) · env_cfg(필드·스위치)
+> · eval/tire_check.py · check_env `--tire-model`·⑦·⑧
+> **검증 근거**: 직진 a 1.993/2.0, M·a = Σf_x 6.915 N · ⑦ slip 곡선 정점 전 오차 0.21%(μ1)·0.52%(μ0.5), μ0.5 정점 = μMg · on ③ μ≤0.5 = 0.8μg(±0.4%)
+> · ⑧ M·a_y = 가한 force(err 0.000), δ_us ≈ Δslip, K_us 기울기 0.67°/g(예측 0.57) · check_env 두 모드·두 장면 통과
+> **단순화·열린 항목**: ① C_κ 가 load 와 무관한 상수(PhysX longStiff) — 가속 중 앞이 더 많이 냄 ② rolling resistance 없음(두 모드) — coasting bag
+> ③ 타이어 값 전부 임시(lateral 은 (b) 3/tan(1/C_S)) — 9차 bag 피팅 ④ 센터 잠김 understeer offset 0.15°·tight corner — bag 원 주행과 비교
+> ⑤ Isaac Lab 2.3.2 force-at-position 좌표계 버그 회피(모멘트 직접 계산) — 6.2 이주 때 positions 방식 재검토 ⑥ 공중 바퀴 결정 (1) — 스폰·벽 충돌 때만
+> ⑦ 낮은 μ 에서 완전 wheelspin 이면 차가 돌기 시작(⑦ μ0.5, 가설·yaw 확인 선택) ⑧ off 모드는 비교용으로 유지
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
