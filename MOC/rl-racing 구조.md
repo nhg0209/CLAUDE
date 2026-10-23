@@ -1435,6 +1435,15 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 1단계 작업(안): C1 config/car.yaml + 순수 로더 `common/car_config.py`(스키마 검사, auto→None) + "YAML 값 = 지금 기본값" 테스트 →
     C2 env_cfg 24개 기본값을 YAML 에서 · ast 테스트 정리 → C3 `--set` 덮어쓰기·meta.json 에 해석된 값과 YAML 해시, `--steer-*` 정리 →
     C4 "안 잰 값" 목록 출력 → 서버: check_env 두 모드 숫자 그대로
+- ✅ **확정 (2026-10-23, 사용자): 요약 동의, ① 은 import 시점 기본값 방식** (대안 "필수 인자 + 항상 로더" 는 안 씀). D1·D2 이유 한 줄은 C1a 결과와 함께 받기로
+  - 합의 설계: ① car.yaml 이 차량 숫자의 유일한 출처(1단계 env_cfg 24개 → 2단계 usd 범주) ② env_cfg 가 import 때 YAML 을 읽어 필드 기본값으로, `auto` = None = 코드 계산, 직접 넘긴 인자 우선
+    ③ real `{value, unit, status, source}`·sim `{value, unit, source}`, 파생값(rest load·C_κ·C_α 등) 없음 ④ 완료 기준 = 서버 check_env 두 모드 숫자 그대로
+  - 단계(한 프롬프트 = 한 줄): **C1a** config/car.yaml(24개, 지금 기본값 그대로) + pyproject PyYAML → **C1b** 순수 로더 `common/car_config.py`(평탄화·스키마·auto→None·list→tuple) + 단위 테스트
+    → **C1c** 테스트 "로더 값 = env_cfg 지금 기본값" → **C2** env_cfg 기본값을 YAML 에서(CAR_YAML_KEYS 를 클래스 위로) + ast 테스트 정리
+    → **C3a** `--set` → **C3b** meta.json 에 해석된 값·YAML 해시 → **C3c** `--steer-*` 를 `--set` 으로 → **C4** 안 잰 값 목록 출력 → 서버 확인
+  - 1단계 동안의 중복 2개: `real.steering.rate_max` 3.2·`real.tire.rolling_radius_m` 0.0508 은 racecar_cfg 상수와 같은 숫자 — C1c 테스트가 같음을 지키고, 2단계에서 한 곳으로
+  - status 분류(C1a): measured 1(center_locked — 사용자 실차 확인) · stack 2(rate_max·rolling_radius) · unmeasured 2(delay·τ) · estimate 9(타이어 8·모터 총 토크 auto)
+    → **실측값은 아직 하나도 없다** (C4 목록이 bag·조향 계단 시험의 할 일 목록이 된다)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
