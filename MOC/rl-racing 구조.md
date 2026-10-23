@@ -1444,6 +1444,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 1단계 동안의 중복 2개: `real.steering.rate_max` 3.2·`real.tire.rolling_radius_m` 0.0508 은 racecar_cfg 상수와 같은 숫자 — C1c 테스트가 같음을 지키고, 2단계에서 한 곳으로
   - status 분류(C1a): measured 1(center_locked — 사용자 실차 확인) · stack 2(rate_max·rolling_radius) · unmeasured 2(delay·τ) · estimate 9(타이어 8·모터 총 토크 auto)
     → **실측값은 아직 하나도 없다** (C4 목록이 bag·조향 계단 시험의 할 일 목록이 된다)
+- ✅ **C1a `c7b1388`** config/car.yaml(24개, 값 불일치 0 — 일회성 대조) + pyproject pyyaml · **C1b `8b8693b`** `common/car_config.load_car_yaml()`(점 경로 평탄화·잎 키 집합·status·auto→None·list→tuple·`auto` 아닌 문자열 거부) + 테스트 10개, 원칙 2 문구에 PyYAML — 352 passed, status 분포 measured 1·stack 2·unmeasured 2·estimate 9 (기대 그대로)
+  - 검토: 그대로 통과. 작은 점 두 개(기록만) — ① 빈 파일·`real:`(null) 이면 ValueError 가 아니라 TypeError/AttributeError (어차피 import 때 크게 실패) ② car.yaml 머리 주석 "아무 코드도 읽지 않는다·기록용 스냅샷" 은 C2 에서 고칠 것
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
