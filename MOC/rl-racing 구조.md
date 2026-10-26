@@ -1472,6 +1472,17 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **C4 `e6a22fa`** `format_car_yaml_report`·`python -m rl_racing.common.car_config` — 375 passed. 출력: 묶음 unmeasured 2·estimate 9·stack 2·measured 1·sim 10, 마지막 줄 "real 14 (measured 1) · sim 10", sha256 f6d3463c… = dev 의 car.yaml sha256sum 과 같음
   - 작은 점: "auto (코드 계산)" 줄만 단위 칸이 4칸 밀림 — ljust 는 글자 수로 세는데 한글은 터미널에서 2칸 폭(East Asian Wide). 고칠지 사용자 선택
 - **1단계 마무리**: 서버 check_env 네 조합. flat on/off 는 C3c(b9cfa60)에서 이미 확인(C3d·C4 는 sim 경로 안 건드림) → 꼭 필요한 건 map on/off
+  - ✅ **서버 check_env 전부 PASS (2026-10-26)** · C4 정렬(한글 폭)은 그대로 두기로(사용자)
+
+> [!abstract] car.yaml 1단계 완료 (2026-10-26, dev `c7b1388`…`e6a22fa`, 10 커밋, 375 passed)
+> `config/car.yaml` 이 env_cfg 24개(real 14·sim 10)의 **유일한 출처** — env_cfg 가 import 때 읽어 필드 기본값(auto→None), 직접 인자 우선.
+> 덮어쓰기는 `--set 점경로=값` 하나(drive·check_env, Kit 기동 전 검사, 종류 검사), meta.json `car_yaml`{path·sha256·overrides·values},
+> 값 보기 `python -m rl_racing.common.car_config`(status 별, 불확실한 것부터). 검증: C1c 대조 + C2b 연결 테스트 + 서버 A/B SAME + check_env 전부 PASS
+> 남은 것: 중복 2개(rate_max·rolling_radius ↔ racecar_cfg, 테스트로 묶음) — 2단계
+
+- **2단계(usd 범주) — 1단계 설명 중 (2026-10-26)**. 지금 숫자가 있는 곳: `common/vehicle.py` VEHICLE(wheelbase·delta_max·v_max·차체 박스, lf:lr 비율) · `urdf_gen.PARAMS`(질량·관성·h_cog·track·바퀴·너클·구동·속도 한계…) · `racecar_cfg`(USD 기대값·armature·경첩 PD·안전망·SPEED_CAP_RANGE)
+  - 정리하다 본 것: `STEER_LIMIT_RAD`·`WHEEL_INERTIA` 는 정의만 있고 아무도 안 씀(WHEEL_INERTIA = ½·m_wheel·r² 를 손으로 적은 파생값), SPEED_CAP_RANGE 는 randomization 범위(DR 결정 때)
+  - 결정 셋: G1 범위 (가) 중복 4개만 (나) 실차 사실(real) 전부 (다) (나)+sim 모델링 값 전부 / G2 USD 가 낡았는지 (가) 사람이 재생성 (나) 생성 때 usd 값 해시 기록 → env 시작 때 비교·에러 (다) (나)+자동 재생성 / G3 바퀴 반지름 (가) 하나(지금처럼) (나) 기하 반지름 r_0(usd, 충돌 원기둥)과 effective rolling radius r_e(spawn, 타이어 모델) 분리
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
