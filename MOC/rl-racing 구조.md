@@ -1464,6 +1464,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **이제 car.yaml 이 무시되는 경로 없음**(drive·check_env 는 `--set`, diag_drive 는 기본값 = car.yaml)
 - ✅ **C3d `8a9f893`** `car_config.car_yaml_sha256`·env_cfg `_CAR_YAML_SHA256`(import 때)·`car_yaml_meta(cfg, overrides)` → drive meta `car_yaml`{path·sha256·overrides·values} — 372 passed. 서버: `24 0.03 True None` / `{'real.steering.tau_s': 0.03}` / sha256 == 파일 해시 True — tire_model 공백 메워짐, values 는 float64 라 0.03 그대로
 - **C4(안 잰 값 목록) — 1단계 설명 중 (2026-10-26)**: 두 결정 — E1 목록 기준 (가) unmeasured+estimate 11개 (나) measured 아닌 real 전부 13개(stack 포함) (다) status 별로 묶은 real 전체 14개 / E2 보이는 곳 (A) 매 실행 설정 줄에 전체 (B) 매 실행 한 줄 개수 + 별도 명령으로 전체 (C) 별도 명령만. 연결: 이 목록이 DR 범위(randomization 섹션) 폭의 근거 — 안 잰 값일수록 넓게(dynamics randomization, Peng 2018)
+- **결정 (2026-10-26, 사용자): E1 (다)** "모든 값을 한번에 보고 싶음" · **E2 (C)** "굳이 실행마다 출력할 필요 없을 듯"
+  - 검토: 타당 — 출처 전체가 한 화면, 실행 출력은 그대로(meta 의 sha256·values 로 실행 기록은 이미 충분). 짚은 점 — ① "모든 값" 이면 sim 10개도? ((다) 는 real 14개로 정의했었음) ② (다) 는 할 일 목록이 흐려짐 → 묶음 순서를 불확실한 것부터(unmeasured → estimate → stack·datasheet·cad → measured) + 묶음마다 개수 ③ (C) 는 잊기 쉬움 → CLAUDE.md 에 명령 한 줄 ④ car.yaml 자체가 이미 한 줄 한 항목이라, 명령의 몫은 status 묶음·개수·auto 의 뜻 표시
+  - 요약안(확인 대기): `python -m rl_racing.common.car_config` → real 14 status 묶음(위 순서·개수) + sim 10 별도 묶음, 줄마다 점 경로·값(auto 는 "auto(코드 계산)")·단위·source. 실행 출력 변경 없음. 문자열 만드는 순수 함수 + `__main__` 분리(테스트 가능), CLAUDE.md 한 줄
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
