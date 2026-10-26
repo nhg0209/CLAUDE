@@ -1451,6 +1451,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **C2a `5922a1e`** CAR_YAML_KEYS 를 RacingEnvCfg 위로(color-moved 로 순수 이동 확인, 주석 두 군데만) + 순서 테스트 — 356 passed, 일부러 깨기 확인
   - 검토 중 발견: drive.py·check_env 의 `--tire-model` 이 argparse **default=True** 로 늘 cfg 에 넘긴다 → C2b 뒤에도 car.yaml `sim.tire.model` 을 바꿔도 두 스크립트에서는 안 바뀜(두 번째 출처). `--steer-*` 는 default=None·준 것만 넘김이라 괜찮음 → **C3c 범위에 `--tire-model` 추가**(default None 또는 `--set` 으로)
   - C2b 직후 서버 A/B: check_env flat(on) 을 5922a1e 와 C2b 에서 한 번씩 → 시험 줄만 뽑아 diff(같은 코드 재실행은 동일했으므로 차이 0 기대). 네 조합 전체는 C4 뒤
+- ✅ **C2b `8a7f8b4`** RacingEnvCfg 24개 기본값 = `_CAR_DEFAULTS[필드]`(import 때 `load_car_yaml()`), racecar_cfg import 제거, 거짓이 된 주석 4곳·car.yaml 머리 주석, 연결 확인 테스트(필드마다 자기 이름 Subscript·대응표 밖 필드는 안 씀·줄 순서) — 356 passed, 일부러 깨기 2개 확인. **서버 A/B: check_env flat(on) 5922a1e ↔ 8a7f8b4 시험 줄 diff = SAME** (규칙 6 — 숫자 불변, 서버 import 정상)
+  - C3 를 넷으로: **C3a** `car_config.parse_overrides`(순수, `키=값`·yaml.safe_load·auto/문자열 규칙 재사용·모르는 키·중복·타입 검사) → **C3b** drive.py `--set`(`--steer-*`·`--tire-model` 제거) → **C3c** check_env·diag_drive 같은 방식 + car.yaml 머리 주의문 삭제·CLAUDE.md 예시 → **C3d** meta.json `car_yaml`(경로·sha256·덮어쓴 값·24개 실제 값)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
