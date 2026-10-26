@@ -1459,6 +1459,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **C3b `7fc8cb9`** drive.py `--set`(append, Kit 전 검사)·`--steer-*`·`--tire-model` 제거, env_cfg `car_overrides_to_cfg_kwargs` — 368 passed. 서버: 오타 `real.steering.tau` → Kit 로그 전에 ValueError ✔ / `--set real.steering.tau_s=0.03` → meta actuation tau_s **0.029999999329447746** = float32(0.03)(env 텐서가 float32 — 가수 24 bit, 0.03 근처 간격 2⁻²⁹≈1.86e-9, 오차 6.7e-10 < 간격/2) — 버그 아님
   - 발견: meta.json 에 **tire_model 모드가 어디에도 안 남는다**(전에는 args.tire_model, 이제 args.overrides 원문뿐 — 기본값으로 돌면 흔적 없음) → C3d 의 `car_yaml.values`(24개 cfg 값)가 메움
   - C3c 범위: check_env 만(`--set`·`--tire-model` 제거·두 장면·설정 줄·⑦⑧ 건너뜀 문구) + car.yaml 머리 주의문 삭제. diag_drive 는 덮어쓰기 인자가 원래 없어(기본값 = car.yaml) 안 건드림. check_env 예측은 cfg 값(friction_vs_slip 등)을 읽으므로 일반 `--set` 을 받아도 판정이 값을 따라간다
+- ✅ **C3c `b9cfa60`** check_env `--set`(두 장면, Kit 전 검사, 설정 줄에 덮어쓰기)·`--tire-model` 제거, car.yaml 머리 주의문 삭제, 테스트 헬퍼 `_assert_script_uses_set_overrides` 공유
+  - 서버: c2b_after.log 가 호스트에 없어 diff 는 못 했지만(빈 파일과 비교) **c3c_on 숫자가 기록값과 전부 같음** — rest load 8.8375/8.1828·C_κ 176.75/163.657·C_α 123.2072/132.4387·안정 0.2640·effort 2.516·③ on 비 1.004/1.001/1.000·⑦ 0.0021/0.0052 PASS. off(`--set sim.tire.model=false`): 설정 줄 off·덮어쓰기 표시·③ μg 비 1.000/0.999/0.999 PASS·⑦⑧ 건너뜀 — 예전 `--no-tire-model` 과 같음
+  - **이제 car.yaml 이 무시되는 경로 없음**(drive·check_env 는 `--set`, diag_drive 는 기본값 = car.yaml)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
