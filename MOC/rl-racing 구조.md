@@ -1491,6 +1491,20 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 발견: `real.steering.rate_max` 는 cfg(서보 속도, runtime·`--set` 가능)와 URDF(경첩 관절 속도 한계 = rate_max × Ackermann 비 × 1.05, usd) 양쪽에 쓰임 → `--set` 으로 3.2 보다 올리면 낡은 경첩 한계(4.39)가 막는다 — D4 에서 1단계 설명으로
   - 발견: `VEHICLE.v_max`·`PARAMS["v_max_mps"]`(10.08, 손으로 적은 중복)는 출력 말고 아무도 안 씀 — erpm 최대·gain 은 실차 배포 때 속도→ERPM 변환에 필요하므로 real 로 넣는다
   - 단계: **D1** car.yaml real +15(값 그대로, 아무도 안 읽음)+대조 테스트·개수 테스트 갱신 → **D2** vehicle.py 가 car.yaml 에서(VEHICLE 대응표) → **D3** urdf_gen PARAMS real 값을 car.yaml 에서(URDF 대응표, v_max_mps 삭제, md5 그대로) → **D4** racecar_cfg 중복·죽은 상수 정리 + rate_max 결정 + `--set` usd 키 거부 → **D5** urdf_gen `urdf_md5()`·`check_usd_source()`(순수) + build 스크립트가 옆 파일 기록 → **D6** env 시작 때 검사 → 서버: 재빌드·check_env·일부러 낡게 해 보기
+- **결정 (2026-10-26, 사용자): 실측(타이어·서보·r_e 등 real 값)은 학습을 돌려 본 뒤로 보류 — 졸업연구 보고서에는 sim 결과만 넣는다**
+- **D4 rate_max 결정 (2026-10-26, 사용자): (가) 경첩 한계를 rate_max 와 분리** "서보 속도도 DR 로 흔들 수 있게" — 3단계: 상한은 sim 값이라 urdf_gen PARAMS `steer_rate_ceiling`
+  (G1 (나)), **6.4 rad/s(=2×3.2) 동의** → 경첩 관절 속도 한계 = ceiling·k_A·1.05 = 8.78 rad/s, rate_max > ceiling 이면 cfg·`set_steer_servo` 에서 ValueError
+- ✅ **2단계 커밋**: D1 `c918bc6` real 15개 · D2 `da4326c` vehicle.py · D3 `2269449` urdf_gen PARAMS(URDF_YAML_KEYS, v_max_mps 삭제) ·
+  D4a `7a3c1e8` 경첩 한계 ceiling 기준(URDF 2줄, md5 979706d5… → **b182cdb8…**) · D4b `64e809f` 상한 초과 에러 · D4c `1456244` racecar_cfg 중복·죽은 상수 정리 ·
+  D4d `2a10eff` `--set` usd 값 거부(rolling_radius 시점 spawn→usd) · D5 `6b95c7d` urdf_md5·check_usd_source·빌드가 USD 옆 `.urdf_md5` 기록 · D6 `2ba9878` spawn 직전 검사 — 384 passed
+- ✅ **서버 (2026-10-26)**: ① 재빌드 전 → "USD 를 만든 URDF 기록이 없다" 로 멈춤 ② 재빌드 → 기록 b182cdb8… ③ 경첩 velocity 8.7797 기대값 일치, check_env on/off × flat/map 전부 통과
+  ④ `--set real.chassis.mass_kg=3.5` → usd 값 거부, `--set real.steering.rate_max=7.0` → ceiling 초과 거부 (처음 명령은 `--accel` 이 빠져 drive.py 가 cfg 전에 끝났음 — Claude 명령 실수)
+
+> [!abstract] car.yaml 2단계 완료 (2026-10-26, dev `c918bc6`…`2ba9878`, 9 커밋)
+> 실차 사실 15개(질량·관성·h_cog·lf/lr 비율·wheelbase·track·바퀴 폭·질량·δ_max·서보 토크·구동륜·a_max·ERPM)도 car.yaml 이 유일한 출처 —
+> `VEHICLE_YAML_KEYS`·`URDF_YAML_KEYS`·`CAR_YAML_KEYS` 합집합 = car.yaml 39개(real 29·sim 10). 처음의 중복 4개 해소, 죽은 상수 삭제.
+> USD 가 car.yaml·urdf_gen 보다 낡으면 env 시작에서 멈춤(URDF md5 비교), `--set` 은 cfg 값만(usd 값 거부), 서보 속도는 상한 6.4 까지 DR 가능.
+> sim 모델링 값(armature·경첩 PD·충돌/관성 박스·안전망·effort_margin·steer_rate_ceiling)은 파이썬(G1 (나)).
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
