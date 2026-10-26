@@ -1456,6 +1456,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **C3a `0774527`** `parse_overrides(items, leaves)` — 첫 `=` 에서 자름·모르는 키·중복·`_resolve_value` 공유·`_same_kind`(auto/bool/수/tuple) — 367 passed
   - 검토: 통과. 작은 점(기록만) ① 값이 YAML 문법 오류(`[1.0,`)면 ValueError 가 아니라 yaml.YAMLError ② 원래 auto 인 항목에 빈 값(`motor_torque_max_nm=`)을 주면 None 으로 통과 ③ tuple 은 종류만 보고 모양(점 3개·점마다 2개)은 안 봄 — friction_vs_slip 을 바꿀 때 서버에서야 드러날 수 있음(그때 검사 추가)
   - C3b 설계: `--set` 검사는 **AppLauncher 전**(순수 모듈만 써서 Kit 기동 수십 초 전에 실패), 점 경로→필드 변환은 env_cfg `car_overrides_to_cfg_kwargs`(C3c 도 씀)
+- ✅ **C3b `7fc8cb9`** drive.py `--set`(append, Kit 전 검사)·`--steer-*`·`--tire-model` 제거, env_cfg `car_overrides_to_cfg_kwargs` — 368 passed. 서버: 오타 `real.steering.tau` → Kit 로그 전에 ValueError ✔ / `--set real.steering.tau_s=0.03` → meta actuation tau_s **0.029999999329447746** = float32(0.03)(env 텐서가 float32 — 가수 24 bit, 0.03 근처 간격 2⁻²⁹≈1.86e-9, 오차 6.7e-10 < 간격/2) — 버그 아님
+  - 발견: meta.json 에 **tire_model 모드가 어디에도 안 남는다**(전에는 args.tire_model, 이제 args.overrides 원문뿐 — 기본값으로 돌면 흔적 없음) → C3d 의 `car_yaml.values`(24개 cfg 값)가 메움
+  - C3c 범위: check_env 만(`--set`·`--tire-model` 제거·두 장면·설정 줄·⑦⑧ 건너뜀 문구) + car.yaml 머리 주의문 삭제. diag_drive 는 덮어쓰기 인자가 원래 없어(기본값 = car.yaml) 안 건드림. check_env 예측은 cfg 값(friction_vs_slip 등)을 읽으므로 일반 `--set` 을 받아도 판정이 값을 따라간다
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
