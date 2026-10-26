@@ -1468,6 +1468,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 검토: 타당 — 출처 전체가 한 화면, 실행 출력은 그대로(meta 의 sha256·values 로 실행 기록은 이미 충분). 짚은 점 — ① "모든 값" 이면 sim 10개도? ((다) 는 real 14개로 정의했었음) ② (다) 는 할 일 목록이 흐려짐 → 묶음 순서를 불확실한 것부터(unmeasured → estimate → stack·datasheet·cad → measured) + 묶음마다 개수 ③ (C) 는 잊기 쉬움 → CLAUDE.md 에 명령 한 줄 ④ car.yaml 자체가 이미 한 줄 한 항목이라, 명령의 몫은 status 묶음·개수·auto 의 뜻 표시
   - 요약안(확인 대기): `python -m rl_racing.common.car_config` → real 14 status 묶음(위 순서·개수) + sim 10 별도 묶음, 줄마다 점 경로·값(auto 는 "auto(코드 계산)")·단위·source. 실행 출력 변경 없음. 문자열 만드는 순수 함수 + `__main__` 분리(테스트 가능), CLAUDE.md 한 줄
   - ✅ **확정 (2026-10-26, 사용자): sim 도 포함, 묶음 순서·요약 동의** → C4 프롬프트 하나
+  - (사용자 질문 "이 작업이 왜 필요한가" → 핵심은 status 기록(C1a), C4 는 보기 편의 — grep 으로도 대부분. [[질문 로그]] 2026-10-26)
+- ✅ **C4 `e6a22fa`** `format_car_yaml_report`·`python -m rl_racing.common.car_config` — 375 passed. 출력: 묶음 unmeasured 2·estimate 9·stack 2·measured 1·sim 10, 마지막 줄 "real 14 (measured 1) · sim 10", sha256 f6d3463c… = dev 의 car.yaml sha256sum 과 같음
+  - 작은 점: "auto (코드 계산)" 줄만 단위 칸이 4칸 밀림 — ljust 는 글자 수로 세는데 한글은 터미널에서 2칸 폭(East Asian Wide). 고칠지 사용자 선택
+- **1단계 마무리**: 서버 check_env 네 조합. flat on/off 는 C3c(b9cfa60)에서 이미 확인(C3d·C4 는 sim 경로 안 건드림) → 꼭 필요한 건 map on/off
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
