@@ -1462,6 +1462,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **C3c `b9cfa60`** check_env `--set`(두 장면, Kit 전 검사, 설정 줄에 덮어쓰기)·`--tire-model` 제거, car.yaml 머리 주의문 삭제, 테스트 헬퍼 `_assert_script_uses_set_overrides` 공유
   - 서버: c2b_after.log 가 호스트에 없어 diff 는 못 했지만(빈 파일과 비교) **c3c_on 숫자가 기록값과 전부 같음** — rest load 8.8375/8.1828·C_κ 176.75/163.657·C_α 123.2072/132.4387·안정 0.2640·effort 2.516·③ on 비 1.004/1.001/1.000·⑦ 0.0021/0.0052 PASS. off(`--set sim.tire.model=false`): 설정 줄 off·덮어쓰기 표시·③ μg 비 1.000/0.999/0.999 PASS·⑦⑧ 건너뜀 — 예전 `--no-tire-model` 과 같음
   - **이제 car.yaml 이 무시되는 경로 없음**(drive·check_env 는 `--set`, diag_drive 는 기본값 = car.yaml)
+- ✅ **C3d `8a9f893`** `car_config.car_yaml_sha256`·env_cfg `_CAR_YAML_SHA256`(import 때)·`car_yaml_meta(cfg, overrides)` → drive meta `car_yaml`{path·sha256·overrides·values} — 372 passed. 서버: `24 0.03 True None` / `{'real.steering.tau_s': 0.03}` / sha256 == 파일 해시 True — tire_model 공백 메워짐, values 는 float64 라 0.03 그대로
+- **C4(안 잰 값 목록) — 1단계 설명 중 (2026-10-26)**: 두 결정 — E1 목록 기준 (가) unmeasured+estimate 11개 (나) measured 아닌 real 전부 13개(stack 포함) (다) status 별로 묶은 real 전체 14개 / E2 보이는 곳 (A) 매 실행 설정 줄에 전체 (B) 매 실행 한 줄 개수 + 별도 명령으로 전체 (C) 별도 명령만. 연결: 이 목록이 DR 범위(randomization 섹션) 폭의 근거 — 안 잰 값일수록 넓게(dynamics randomization, Peng 2018)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
