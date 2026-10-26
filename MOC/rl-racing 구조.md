@@ -1485,6 +1485,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 결정 셋: G1 범위 (가) 중복 4개만 (나) 실차 사실(real) 전부 (다) (나)+sim 모델링 값 전부 / G2 USD 가 낡았는지 (가) 사람이 재생성 (나) 생성 때 usd 값 해시 기록 → env 시작 때 비교·에러 (다) (나)+자동 재생성 / G3 바퀴 반지름 (가) 하나(지금처럼) (나) 기하 반지름 r_0(usd, 충돌 원기둥)과 effective rolling radius r_e(spawn, 타이어 모델) 분리
 - **결정 (2026-10-26, 사용자): G1 (나)** "거의 안 바꿀 값까지 넘길 필요 없을 듯" · **G2 (나)** "설정이 다르면 경고, Kit 을 자동으로 안 띄우니 문제없을 듯" · **G3 (가)** "r_0 는 거의 쓸 일 없으니 r_e 기준 값 하나"
   - 검토: G1 — 경계가 애매한 것(서보 토크 5.0·바퀴 질량 = real/estimate, effort_margin 1.5 = sim 유지 → auto 모터 토크가 YAML 값 + 파이썬 상수 섞임), v_max 는 파생(46500/4614) → erpm 최대·gain 두 값을 넣고 코드가 나눔(규칙 2). G2 — 해시 대상을 "usd 키 목록" 대신 **지금 코드·car.yaml 로 메모리에서 다시 만든 URDF 의 md5** ↔ USD 를 만든 URDF md5(빌드 때 USD 옆 파일) 로 하자는 수정안 (키 목록 불필요, urdf_gen 코드 변경도 잡힘, URDF 생성은 순수 파이썬 ms 단위); 사용자 말은 "경고" — 멈춤(에러) vs 경고+meta 표시 확인 필요; `--set` 에 usd 키 → parse 단계에서 명확한 에러; 처음 한 번 재빌드해야 옆 파일이 생김. G3 — on 모드에선 원기둥 r_0 가 kinematics 에 안 쓰임(바퀴 PhysX 마찰 0)·off 모드에선 원기둥이 실제로 굴러 v≈ω·r_0 → 하나로 두면 두 모드가 같은 반지름(장점); 대신 rolling_radius_m 의 적용 시점이 spawn → **usd** 로 바뀌어 bag 의 r_e 피팅이 USD 재빌드를 부름(차 높이 1 mm 변화 = h_cog 의 1.4%, 무시 가능); stack 의 speed_to_erpm_gain(=60·p·G/(2π·r_e))이 r_e 교차 확인 경로(극쌍 p·기어비 G 를 알면)
+- ✅ **확정 (2026-10-26, 사용자): G2 다를 때 = 멈춤(에러), 해시 대상 = 다시 만든 URDF md5, 요약 동의**
+  - 합의 설계: ① real 약 15개 → car.yaml(status), sim 모델링 값은 파이썬, 파생값 코드 계산·죽은 상수 삭제 ② 바퀴 반지름 하나(`real.tire.rolling_radius_m`, usd) ③ 빌드 때 URDF md5 를 USD 옆 파일에, env 시작 때 지금 코드·car.yaml 로 만든 URDF md5 와 다르면 멈춤 ④ 완료 = URDF md5 979706d5… 그대로 + 재빌드 후 check_env PASS
+  - 정정(Claude): `--set` 의 usd 키 거부는 "parse 단계"가 아니라 **Kit 기동 뒤 env 생성 전**(대응표 CAR_YAML_KEYS 가 env_cfg 안 — Kit 필요). Kit 전에 잡으려면 대응표를 순수 모듈로 옮기는 단계가 하나 더
+  - 발견: `real.steering.rate_max` 는 cfg(서보 속도, runtime·`--set` 가능)와 URDF(경첩 관절 속도 한계 = rate_max × Ackermann 비 × 1.05, usd) 양쪽에 쓰임 → `--set` 으로 3.2 보다 올리면 낡은 경첩 한계(4.39)가 막는다 — D4 에서 1단계 설명으로
+  - 발견: `VEHICLE.v_max`·`PARAMS["v_max_mps"]`(10.08, 손으로 적은 중복)는 출력 말고 아무도 안 씀 — erpm 최대·gain 은 실차 배포 때 속도→ERPM 변환에 필요하므로 real 로 넣는다
+  - 단계: **D1** car.yaml real +15(값 그대로, 아무도 안 읽음)+대조 테스트·개수 테스트 갱신 → **D2** vehicle.py 가 car.yaml 에서(VEHICLE 대응표) → **D3** urdf_gen PARAMS real 값을 car.yaml 에서(URDF 대응표, v_max_mps 삭제, md5 그대로) → **D4** racecar_cfg 중복·죽은 상수 정리 + rate_max 결정 + `--set` usd 키 거부 → **D5** urdf_gen `urdf_md5()`·`check_usd_source()`(순수) + build 스크립트가 옆 파일 기록 → **D6** env 시작 때 검사 → 서버: 재빌드·check_env·일부러 낡게 해 보기
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
