@@ -1483,6 +1483,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **2단계(usd 범주) — 1단계 설명 중 (2026-10-26)**. 지금 숫자가 있는 곳: `common/vehicle.py` VEHICLE(wheelbase·delta_max·v_max·차체 박스, lf:lr 비율) · `urdf_gen.PARAMS`(질량·관성·h_cog·track·바퀴·너클·구동·속도 한계…) · `racecar_cfg`(USD 기대값·armature·경첩 PD·안전망·SPEED_CAP_RANGE)
   - 정리하다 본 것: `STEER_LIMIT_RAD`·`WHEEL_INERTIA` 는 정의만 있고 아무도 안 씀(WHEEL_INERTIA = ½·m_wheel·r² 를 손으로 적은 파생값), SPEED_CAP_RANGE 는 randomization 범위(DR 결정 때)
   - 결정 셋: G1 범위 (가) 중복 4개만 (나) 실차 사실(real) 전부 (다) (나)+sim 모델링 값 전부 / G2 USD 가 낡았는지 (가) 사람이 재생성 (나) 생성 때 usd 값 해시 기록 → env 시작 때 비교·에러 (다) (나)+자동 재생성 / G3 바퀴 반지름 (가) 하나(지금처럼) (나) 기하 반지름 r_0(usd, 충돌 원기둥)과 effective rolling radius r_e(spawn, 타이어 모델) 분리
+- **결정 (2026-10-26, 사용자): G1 (나)** "거의 안 바꿀 값까지 넘길 필요 없을 듯" · **G2 (나)** "설정이 다르면 경고, Kit 을 자동으로 안 띄우니 문제없을 듯" · **G3 (가)** "r_0 는 거의 쓸 일 없으니 r_e 기준 값 하나"
+  - 검토: G1 — 경계가 애매한 것(서보 토크 5.0·바퀴 질량 = real/estimate, effort_margin 1.5 = sim 유지 → auto 모터 토크가 YAML 값 + 파이썬 상수 섞임), v_max 는 파생(46500/4614) → erpm 최대·gain 두 값을 넣고 코드가 나눔(규칙 2). G2 — 해시 대상을 "usd 키 목록" 대신 **지금 코드·car.yaml 로 메모리에서 다시 만든 URDF 의 md5** ↔ USD 를 만든 URDF md5(빌드 때 USD 옆 파일) 로 하자는 수정안 (키 목록 불필요, urdf_gen 코드 변경도 잡힘, URDF 생성은 순수 파이썬 ms 단위); 사용자 말은 "경고" — 멈춤(에러) vs 경고+meta 표시 확인 필요; `--set` 에 usd 키 → parse 단계에서 명확한 에러; 처음 한 번 재빌드해야 옆 파일이 생김. G3 — on 모드에선 원기둥 r_0 가 kinematics 에 안 쓰임(바퀴 PhysX 마찰 0)·off 모드에선 원기둥이 실제로 굴러 v≈ω·r_0 → 하나로 두면 두 모드가 같은 반지름(장점); 대신 rolling_radius_m 의 적용 시점이 spawn → **usd** 로 바뀌어 bag 의 r_e 피팅이 USD 재빌드를 부름(차 높이 1 mm 변화 = h_cog 의 1.4%, 무시 가능); stack 의 speed_to_erpm_gain(=60·p·G/(2π·r_e))이 r_e 교차 확인 경로(극쌍 p·기어비 G 를 알면)
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
