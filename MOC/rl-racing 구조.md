@@ -1506,6 +1506,23 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 > USD 가 car.yaml·urdf_gen 보다 낡으면 env 시작에서 멈춤(URDF md5 비교), `--set` 은 cfg 값만(usd 값 거부), 서보 속도는 상한 6.4 까지 DR 가능.
 > sim 모델링 값(armature·경첩 PD·충돌/관성 박스·안전망·effort_margin·steer_rate_ceiling)은 파이썬(G1 (나)).
 
+**stack 제어기 sim 주행 · 실차 bag 맞추기 (2026-10-26 ~ 10-27)**
+- 결정 K1 (나) accel 경로(RL 과 같은 구동 경로), k_v = 1/speed_lookahead = 4 · 속도 프로파일 IQP vx × 0.8(비교군 ①)
+- 커밋: E1 `bdfdd55` StackDriver · E2 `8107585` drive `--controller stack` · logger 더미 수정 · E4b `1221a67` state_machine 창 가속 제한(a_long 5.0, backward→seed→forward) ·
+  E4c `d571565` 창 = 차 인덱스부터 n_loc_wpnts · E5 `fafee08` 속도 오차를 바퀴 평균 둘레속도로(VESC ERPM 되먹임 흉내 — 결정 (나)) · E6 `48ba797` main_loop acc = 0(실차 /imu/data 발행자 없음)
+- 서버: μ0.6 첫 랩 정지 출발 wheelspin → 벽(원인: 창 가속 제한 누락 + 헛돎 무제한 + armature 12배 관성) → E4b·E5 뒤 μ0.55 랩0 바퀴 둘레속도 7.81 ≤ v_cmd 8.78, 벽 0, 완주
+- 관찰·해석: μ_eff = μ·g(κ') — 정점 뒤 감소가 종방향 slip 만 봄 → 횡 미끄러짐 관대. 결정 (나) 합성 slip √(κ'²+tan²α') 로 바꾸기, **곡선 값(그대로/조정)은 미정 → bag B4·B5 로**
+  · 오버스티어 체감: 제동 중 oversteer·가속 중 understeer(전체 understeer 3배) = 종방향 하중 이동의 정상 물리, 실차의 강한 understeer 요인(load sensitivity·조향 compliance·C_α 비율)이 sim 에 없음 + 루프 지연의 yaw 과잉 회전
+  · RL: 가속 상한 없음(사람이 노면에 맞춘 값은 policy 에 안 줌) — H2 (가) 모터 한계 방향, 확정은 base_policy 때(H1·H3·H4 와 함께)
+- **센서 지연 결정**: L1 (나) 신호별(위치/속도/IMU/바퀴) · L2 (가) env 안에서 참값(get_measurements)·관측(get_observations) 분리 · L3 (나) 물리 step 버퍼 · L4 (나) 추정값 → bag 측정으로
+- **실측 보류 결정 변경 (2026-10-27, 사용자)**: 실차 bag 으로 sim 값을 맞춘다 — B1 (다) 항목별 추정 후 재현 주행으로 궤적 오차를 줄임, 데이터는 사용자가 npz 로 추출해 커밋(`70791dd`·`3a951ad`)
+  · ⚠ 추출이 bag 99.5 s 중 61.1 s 까지만 — 원인 확인·재추출 필요. 상태: RECOVERY 47% · TRAILING 27% · GB_TRACK 25%, 조이스틱 개입 있음, Livox IMU 가속 단위 g, Livox 프레임 pitch ≈ 15°
+- **B1 결과(시간)**: 위치 210 Hz·yaw vs 자이로 0 ms(상관 0.999)·kiss lat_ms p50 6 → **5 ms** / 속도: 바퀴속도 대비 +5 ms(상관 0.74) → **15 ms**(코드 조사의 ~120 ms 추정은 데이터로 기각) /
+  IMU 203 Hz → **5 ms** / 바퀴 49.8 Hz → **10 ms** / 명령: mux 한 주기 p50 18 ms → 0.02(모터 쪽 command_delay 항목 추가 여부 질문 중) /
+  보정 점프 p50 1.8 cm·yaw 0.17° → **결정 (가) 지연만, 위치 오차 무시** (보고서에 가정 명시)
+  · 발견: 위치미분 속도 / (ERPM/4614) = **1.297** — gain 또는 기어 불일치(실차가 v_cmd 보다 약 30% 빠름 가능) → B3, 기어·모터 교체 여부 질문 중
+- 다음: S1(car.yaml real.sensing 4개) → S2~S5(버퍼·관측 분리·runner) → B2 서보 … B6 재현 주행
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
@@ -1566,20 +1583,3 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - [[공유 인터페이스 (sim ↔ real)]] — B 의 규약 (이 구조가 담는 내용)
 - [[프로젝트 스택]] §13 #19 (별도 repo), #21~#24
 - [[트랙 생성 · Frenet 변환]] · [[ML 서버 · Isaac Sim 환경]] — 옮겨 올 코드의 기록
-
-**stack 제어기 sim 주행 · 실차 bag 맞추기 (2026-10-26 ~ 10-27)**
-- 결정 K1 (나) accel 경로(RL 과 같은 구동 경로), k_v = 1/speed_lookahead = 4 · 속도 프로파일 IQP vx × 0.8(비교군 ①)
-- 커밋: E1 `bdfdd55` StackDriver · E2 `8107585` drive `--controller stack` · logger 더미 수정 · E4b `1221a67` state_machine 창 가속 제한(a_long 5.0, backward→seed→forward) ·
-  E4c `d571565` 창 = 차 인덱스부터 n_loc_wpnts · E5 `fafee08` 속도 오차를 바퀴 평균 둘레속도로(VESC ERPM 되먹임 흉내 — 결정 (나)) · E6 `48ba797` main_loop acc = 0(실차 /imu/data 발행자 없음)
-- 서버: μ0.6 첫 랩 정지 출발 wheelspin → 벽(원인: 창 가속 제한 누락 + 헛돎 무제한 + armature 12배 관성) → E4b·E5 뒤 μ0.55 랩0 바퀴 둘레속도 7.81 ≤ v_cmd 8.78, 벽 0, 완주
-- 관찰·해석: μ_eff = μ·g(κ') — 정점 뒤 감소가 종방향 slip 만 봄 → 횡 미끄러짐 관대. 결정 (나) 합성 slip √(κ'²+tan²α') 로 바꾸기, **곡선 값(그대로/조정)은 미정 → bag B4·B5 로**
-  · 오버스티어 체감: 제동 중 oversteer·가속 중 understeer(전체 understeer 3배) = 종방향 하중 이동의 정상 물리, 실차의 강한 understeer 요인(load sensitivity·조향 compliance·C_α 비율)이 sim 에 없음 + 루프 지연의 yaw 과잉 회전
-  · RL: 가속 상한 없음(사람이 노면에 맞춘 값은 policy 에 안 줌) — H2 (가) 모터 한계 방향, 확정은 base_policy 때(H1·H3·H4 와 함께)
-- **센서 지연 결정**: L1 (나) 신호별(위치/속도/IMU/바퀴) · L2 (가) env 안에서 참값(get_measurements)·관측(get_observations) 분리 · L3 (나) 물리 step 버퍼 · L4 (나) 추정값 → bag 측정으로
-- **실측 보류 결정 변경 (2026-10-27, 사용자)**: 실차 bag 으로 sim 값을 맞춘다 — B1 (다) 항목별 추정 후 재현 주행으로 궤적 오차를 줄임, 데이터는 사용자가 npz 로 추출해 커밋(`70791dd`·`3a951ad`)
-  · ⚠ 추출이 bag 99.5 s 중 61.1 s 까지만 — 원인 확인·재추출 필요. 상태: RECOVERY 47% · TRAILING 27% · GB_TRACK 25%, 조이스틱 개입 있음, Livox IMU 가속 단위 g, Livox 프레임 pitch ≈ 15°
-- **B1 결과(시간)**: 위치 210 Hz·yaw vs 자이로 0 ms(상관 0.999)·kiss lat_ms p50 6 → **5 ms** / 속도: 바퀴속도 대비 +5 ms(상관 0.74) → **15 ms**(코드 조사의 ~120 ms 추정은 데이터로 기각) /
-  IMU 203 Hz → **5 ms** / 바퀴 49.8 Hz → **10 ms** / 명령: mux 한 주기 p50 18 ms → 0.02(모터 쪽 command_delay 항목 추가 여부 질문 중) /
-  보정 점프 p50 1.8 cm·yaw 0.17° → **결정 (가) 지연만, 위치 오차 무시** (보고서에 가정 명시)
-  · 발견: 위치미분 속도 / (ERPM/4614) = **1.297** — gain 또는 기어 불일치(실차가 v_cmd 보다 약 30% 빠름 가능) → B3, 기어·모터 교체 여부 질문 중
-- 다음: S1(car.yaml real.sensing 4개) → S2~S5(버퍼·관측 분리·runner) → B2 서보 … B6 재현 주행
