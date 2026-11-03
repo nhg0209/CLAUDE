@@ -1618,6 +1618,19 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   조향 중심 offset → DR(에피소드마다 무작위) · combined slip 곡선 값 → 지금 모델 유지(데이터 없음, 한계로 기록) · h 실측·실차 가감속 메커니즘 → 실차 이식 때 · 궤적 지표(끝 yaw 누적) → 기록만.
   다음: S3(센서 지연) → base policy → observation·reward → DR → SAC. Isaac Sim 6.2/Lab v3 이전은 필요성 재판단 대상
 
+**센서 지연 S3–S5 (2026-11-02)**
+- ✅ `34c12ca` S3 센서 4묶음 DelayLine(pose 3·velocity 2·imu 3·wheel 4), `_apply_action` 에서 물리 step 마다 push, reset 직후 첫 push 로 버퍼 채움, 읽기 offset = round(d/Δt) − 1(push 가 substep 시작이라) — pose 0·velocity 2·imu 0·wheel 1
+- ✅ `3e8645c` S4 `get_observations()` — 지연 반영, 관측용 FrenetTracker 별도(step 당 한 번, 참값 tracker 와 같은 자리), t 지연 없음, `steer_actual` 제외(실차에 servo 각 센서 없음)
+- ✅ `e0987c1` S5 runner: 제어기 ← 관측, 기록·판정 ← 참값, `obs__` 기록. stack·replay 의 VESC 루프 흉내가 10 ms 늦은 바퀴 속도를 쓰는 것은 의도된 근사(τ 0.18 s 대비 5%)
+- 서버: replay 기록에서 lag = 설정 + 1 step(vx 4·pos 2·imu 2·wheel 3, 그 lag 에서 오차 0) — +1 은 기록 방식(obs 는 step 전·meas 는 step 후). replay 식별·rms_r 불변(0.2182)
+
+**base policy · action 결정 H1–H4 (2026-11-03, 사용자)** — 1단계 설명을 사용자 요청으로 하나씩 다시(그림 `attachments/base_policy/h1_clip.png`)
+- **H1 자르는 순서 = (가) 더한 뒤 한 번**(servo 의 ±24° clamp 하나뿐, 곡률 clip 코드 없음) "모든 코너에서 조향 한계까지 꺾는 경우는 없었고, 그때 덜 꺾는 이점이 없음".
+  근거 확인: ifac_0824_mapping_3 라인 최대 κ 0.76 = 한계 1.35 의 56%, 한계 초과는 η > 45°(2.7 m/s)·28°(≤1.9 m/s) — 복구·출발·학습 초기뿐. 사용자 질문 "그 상황에서 RL 이 감속을 배우지 않나" → 저속은 조향 한계가 묶어 감속으로 안 풀림(마찰 한계와 같아지는 속도 v* = √(μg/κ_max): μ1 2.70·μ0.5 1.91 m/s). 맵을 바꾸면 다시(라인 κ 가 한계의 80% 이상이면)
+- **H2 A_max = (가) 모터 토크 한계 자동 계산(≈ 9.6 m/s², 선형, 가속·제동 같은 크기)** "마찰 한계를 넘으면 랩타임·진행도에서 손해라 RL 이 노면에 맞게 조절". 전제: actor 관측에 바퀴 속도(slip 관측 가능). 문헌: DRL traction control(얼음, 2024·SAE 2025)
+- **H3 떨림 = 조향·가속 모두 CAPS**(action 경로에 필터 없음, SAC actor 손실에 temporal·spatial 항, λ_T·λ_S·σ 는 SAC 설계 때). 평가에 매끄러움 지표. 실차 떨림 시 필터 추가 = 재학습
+- **H4 governor = (나) 자리만**(그대로 통과 함수 + 테스트) "지금은 혼자 주행". 실차 안전 상한으로 쓰려면 학습에도 넣거나 별도 안전 장치로(Dalal 2018 safety layer)
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
