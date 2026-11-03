@@ -1630,6 +1630,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **H2 A_max = (가) 모터 토크 한계 자동 계산(≈ 9.6 m/s², 선형, 가속·제동 같은 크기)** "마찰 한계를 넘으면 랩타임·진행도에서 손해라 RL 이 노면에 맞게 조절". 전제: actor 관측에 바퀴 속도(slip 관측 가능). 문헌: DRL traction control(얼음, 2024·SAE 2025)
 - **H3 떨림 = 조향·가속 모두 CAPS**(action 경로에 필터 없음, SAC actor 손실에 temporal·spatial 항, λ_T·λ_S·σ 는 SAC 설계 때). 평가에 매끄러움 지표. 실차 떨림 시 필터 추가 = 재학습
 - **H4 governor = (나) 자리만**(그대로 통과 함수 + 테스트) "지금은 혼자 주행". 실차 안전 상한으로 쓰려면 학습에도 넣거나 별도 안전 장치로(Dalal 2018 safety layer)
+- **H5 PP 목표점 = (다) Coulter 원형** "제일 기본적인 PP" — 반지름 L_d 원과 라인의 **현재 s 부터 앞쪽 첫 교점**, 없으면 경로를 따라 L_d 앞 점 + 분모 실제 거리 ℓ, κ_PP = 2y_g/ℓ² (Coulter 1992). 대안이던 stack 방식(호 길이 L_d·분모 L_d)은 코너에서 κ 를 작게 내 residual 이 상시 7% 를 메워야 했음
+- **H2 수정 (Claude 발견)**: "모터 토크 한계 9.6" 은 실측이 아니라 `motor_torque_max = m·a_max·r·1.5`(auto) 를 m_eff(armature 포함)로 나눈 값 → A_max = car.yaml `a_max_mps2` 9.51(토크 한계가 이 ×1.5 라 u₂=±1 이 안 걸림, armature 를 고쳐도 불변, sim·실차 같음)
+- **PP 단독(②) 속도 = stack 경로 (가)**, heading·횡오차 속도 보정만 끔(사용자 — "같은 속도 경로로 비교, 보정은 필요 없음") — 「공유 인터페이스」 §7 별도 규칙 폐기. 사용자 요청으로 stack 가속 명령 생성 과정 설명(프로파일 ×0.8 → 창 가속 한계 5 m/s² → main_loop 0.25 s 앞 속도·보정 → VESC (v_cmd − r·ω̄)/0.18)
+- ✅ 커밋: B1 `9e94e52` lookahead_distance·forward_circle_intersection · B2 `a3d6158` pure_pp · B3 `d6af226` action.compose·governor 자리 · B4 `187ee45` PurePPController(StackDriver 감싸 가속, 조향 PP) · `4362bae` **lookahead 튜닝 M 0.47→0.39·MIN 0.7→1.0**
+- 서버 1랩(μ 1.0): stack 10.94 s·평균|d| 0.018·최대 0.048 m / PP(stack lookahead) 11.78 s·최대|d| 1.47 m — **마지막 코너 탈출에서 바깥 벽 충돌·스핀**(사용자 관찰), L_d 가 길어 일찍 핸들을 풂.
+  사용자가 서버에서 상수를 직접 바꿔 튜닝(M 0.39·MIN 1.0) → 3랩 완주: 11.24 / 10.52 / 10.52 s, 평균|d| 0.077–0.088, 최대|d| 0.18 m, 최대 조향 14.5°. 이 L_d 는 RL residual 의 base 에도 쓰인다
+  - 메모: stack 은 1랩(정지 출발)만 돌려 2·3랩 비교값이 없음 — 평가 설계 때 같은 랩 수로. μ 별 speed_scale 을 ①·②에 줄지도 평가 설계 때
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
