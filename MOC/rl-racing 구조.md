@@ -52,7 +52,7 @@ rl-racing/
 │  ├─ envs/racing/            A — Isaac Lab DirectRLEnv            신규
 │  │  ├─ env.py · env_cfg.py
 │  │  ├─ reward.py            프로젝트 스택 §10-4
-│  │  ├─ critic_obs.py        privileged — μ, v_cap, 실제 벽 거리 …
+│  │  ├─ critic_obs.py        privileged — μ, v_cap, DR 파라미터 (「공유 인터페이스」 §4-2)
 │  │  ├─ randomization.py     μ, v_cap …
 │  │  └─ path_variation.py    d_ref(s) 생성 — 오프셋·경로 교체 (#22)
 │  │
@@ -1643,6 +1643,28 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   bag 재생이 비슷했던 건 근거가 아님 — bag 엔 큰 wheelspin 이 없고(slip 상위 1% 편차 정속 0.038·강제동 0.157), 미끄러지지 않으면 가속 모드가 m_eff 로 보정해 armature 가 안 보임.
   **한계로 기록**: 한계 근처에서 sim 이 관대(천천히 헛돌고 천천히 회복) → 실차 이식 때 다시. DR 설계 때 armature 를 안정 범위(예: 5e-4–1e-3)에서 흔들지 검토
 - ⚠ 「공유 인터페이스」 §6 실험 표의 ② 속도는 이제 "stack 속도 경로(보정 2개 끔)" — §7 폐기에 맞춰 읽을 것
+
+**observation 설계 O1–O5 · history (2026-11-03 ~ 04, 사용자)** — 결정마다 1단계에서 문헌 검색(§0-3). 규약 전문 = 「공유 인터페이스」 §4
+- **O1 action history** = 최근 compose 명령(δ_cmd/0.4189, a_cmd/9.51) — 지연 구간 안의 "보냈지만 아직 반영 안 된 명령"(Katsikopoulos & Engelbrecht 2003, 상태에 최근 d 개 action). → history 결정에서 2 s 로 흡수, 20 ms 균일 구간 7개(0.14 s) 유지
+- **속도 obs = (가) sim 참값 + 지연** "리포트는 sim 결과만". 계기: 서버 `ekf_pf.yaml` — `/vesc/odom` vx·vyaw + PF x·y·yaw, IMU 없음 → 실차 $v_x \approx v_w$, $v_y \approx 0$, λ ≈ 0. 실차 배포는 localization pose 미분(사용자 제안).
+  noise = (ㄱ) white Gaussian "단순한 걸로" — filter 를 거친 느린(colored) 오차는 표현 못 함 → 한계로 기록. 문헌: FastRLAP(별도 속도원) · bimanual 2022(실측 σ Gaussian) · DeXtreme(에피소드 + step noise) · UAV PPO 2023(bias 는 filter 로 안 지워짐)
+- **O2 wheel 정보 = λ 하나**. velocity 15 ms · wheel 10 ms 지연 차이의 가짜 slip ≈ a·Δd/v = 0.5% (5 m/s², 5 m/s) — sim 도 같은 지연이라 재현된다(사용자 지적, 맞음). DR 에서 두 지연을 따로 흔듦
+- **O3 critic = (B) actor obs + privileged** (Baisero & Amato 2022 — state 만 보는 critic 은 bias) · **(나) μ + DR 파라미터 전부** (Peng 2018 계열) · v_cap 자리 ·
+  벽 여유 뺌 — 사용자 질문 "경로 오차만 주면 되지 않나" → actor obs 의 결정론적 함수라 중복. 사용자 "벽 좌표가 들어가게" → preview $d_{\text{left/right}}$ 가 곧 sim 벽 좌표(벽 메시를 그 값으로 만듦)라 별도 항목 없음
+- **O4 정규화 = (나) running mean/std, critic 같은 방식** (Andrychowicz 2021 · SimBa 2024 — buffer 는 raw, 입력에서 정규화, wrapper 에서 정규화해 저장하면 불일치).
+  λ = (ㄱ) raw 에 symlog 먼저 "λ ≥ 1 이면 이미 wheelspin, 그 뒤 크기는 의미 작음" (DreamerV3). 남은 위험: σ 가 작으면 peak 0.15 아래에서 clip → 진단으로 확인.
+  a_x, a_y = (iii′) **통계는 s 로만** — 충돌 spike(Δv/Δt ≈ 400 m/s²)가 종료 상태 s' 로만 통계에 들어가 σ 를 키우던 것(초반 p ≈ 1/(2T) ≈ 0.01 → σ ≈ 40 m/s², 평소 ±10 이 ±0.25 로 눌림)을 원인째 없앰. 사용자 질문 "어차피 충돌하면 종료 아닌가" 에서 정리됨
+- **O5 preview = (P3) $\Delta(s) = \max(0.25, 0.1 s)$ 31점** "차원 비용은 적은데 해상도는 가장 높음". 근거 계산(mapping_3·roboracer 라인):
+  한 지점 κ 는 1.5 m 간격에서 코너 대부분을 놓침 → **κ̂ = 구간 최대**(부호 포함) · 점질량 속도 프로파일의 감속 구간 최장 2.4–3.7 m + 지연 ≤ 1.0 m → **감속 시작점은 모든 μ 에서 5 m 안** ·
+  점마다 Δψ 대신 **e_ψ 스칼라**(두 점을 이은 방향의 오차 κΔs/2 = 21°) · 60 차원 비용 = buffer +0.5 GB/10⁶, network +15%(GPU 는 launch 에 묶여 시간 영향 작음).
+  사용자 제안으로 거리 비례·지수 간격 비교 — MPC 의 지수 step(2108.08014, 2511.14311)은 $\Delta_k = \Delta_0 r^k \Leftrightarrow \Delta(s) = \Delta_0 + (r-1)s$ 라 같은 계열, 같은 차원이면 감속 구간(2.4–4.7 m) 해상도는 max 형이 높음
+- **history = (나) 비균일 $\Delta t(\tau) = \max(20\ \text{ms}, 0.15\tau)$ 26 샘플 · 2 s · action 같은 길이 · 구간 평균 + a_y·λ 극값 · reset 상태로 채움**.
+  이유: 코너 사이(0.5–2 s) μ 근거를 다음 코너까지 기억(Claude 정리, 사용자 동의). 문헌: RMA(Kumar 2021) 0.5 s state + action → 1D CNN. 제약 α ≤ 0.02/d_max (지금 d_max ≈ 0.14 s). recurrent(skrl `SAC_RNN`, policy 만 RNN)는 안 씀
+- 정정 (Claude): history 표의 "α 0.1 → 약 25개" 는 34개 · O5 1단계의 "μ 0.25 에 13 m 필요" 는 8 m/s 가정 — 이 트랙에서 μ 0.25 최고 속도 4.3–4.7 m/s
+- **SAC 단계 skrl 1.4.3 수정 목록**: ① 비대칭 입력 — `states` 하나에 [actor, privileged], actor model 이 앞 455 만 ② truncated 에서 bootstrap 을 끊지 않기 (지금 target 이 `¬(terminated ∨ truncated)`) ③ 통계는 s 로만 (`sampled_next_states` 를 `train=False`) ④ CAPS. buffer 10⁶ ≈ 3.8 GB (GPU 15 GB)
+- **다음 단계로 넘김** — 에피소드·보상: 충돌 판정·종료는 접촉한 그 step / $d_{\text{ref}}$ 를 흔들지 / 라인 최대 κ(mapping_3 1.56, roboracer 2.52) > κ_max 1.349 → 피할 수 없는 e_d.
+  DR: 지연 최댓값 vs α · velocity noise σ·지연 범위(pose 미분 추정기 기준) · wheel speed gain · a_x, a_y noise
+- **리포트 한계**: 실차 EKF 는 wheel 기반 · obs noise 는 white · sim 의 a 는 COM·gravity 없음 · IMU 진동 noise · Livox 가속도 단위 미확인
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,

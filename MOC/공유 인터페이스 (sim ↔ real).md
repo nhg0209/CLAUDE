@@ -217,31 +217,66 @@ $$a_{x,\text{final}} = \min\big(a_{x,\theta},\; k_g\,(v_{\text{lim}} - v)\big)$$
 
 ---
 
-## 4. ⏳ Observation 규약 — **미확정. 최우선 과제**
+## 4. 🔒 Observation 규약 — 확정 (2026-11-04, 사용자)
 
 > [!danger] 여기가 가장 위험하다
 > 순서 하나, 정규화 상수 하나가 어긋나면 실차 policy 는 **다른 함수**를 계산한다.
 > 코드가 아니라 **선언적 스펙**(이름·순서·차원·정규화)을 먼저 고정하고, sim/real 이 그걸 읽게 한다.
 
-### 확정된 것 🔒
+결정 과정·근거·문헌은 [[rl-racing 구조]] §8-6 「observation 설계」, 질문은 [[질문 로그]] 2026-11-03~04.
 
-| 항목 | 값 |
+### 4-1. actor obs — 약 455 차원 (이 순서)
+
+| # | 그룹 | 내용 | 차원 |
+|---|---|---|---|
+| 1 | 경로 오차 | $e_d = d - d_{\text{ref}}(s)$ · $e_\psi = \psi - \psi_{\text{ref}}(s)$ (raceline 접선 기준, $(-\pi, \pi]$ 로 wrap, $>0$ = 경로보다 왼쪽을 봄) | 2 |
+| 2 | preview | **31점** — 차가 투영된 $s$ 부터 arc length 로 $\Delta(s) = \max(0.25,\ 0.1\,s)$: 0.25 … 2.75 (0.25 간격 11점), 3.03, 3.33, 3.66, 4.03, 4.43, 4.87, 5.36, 5.90, 6.48, 7.13, 7.85, 8.63, 9.49, 10.44, 11.49, 12.64, 13.90, 15.29, 16.82, 18.50 m. 점마다 $x, y$ (**차량 좌표계**, x 전방 +, y 좌측 +), $\hat\kappa$, $d_{\text{left}}$, $d_{\text{right}}$, $d_{\text{ref}}$ | 186 |
+| 3 | base | $\kappa_{\text{PP}}$ — 무엇을 보정하는지 알아야 한다 | 1 |
+| 4 | 현재 ego | $v_x, v_y$ (참값 + 측정 지연 + white Gaussian noise) · $r$ · $a_x, a_y$ (IMU) · $\lambda$ | 6 |
+| 5 | history | **26 샘플**, $\tau$ = 0.02 … 1.99 s 전, $\Delta t(\tau) = \max(20\ \text{ms},\ 0.15\,\tau)$ (20 ms 배수로 맞춤). 샘플마다 그 구간의 **평균** [ego 6 + action 2] + **극값** $a_y$, $\lambda$ | 260 |
+
+- $\hat\kappa_k$ = 점 $k$ 가 맡는 구간(이웃 점과의 중간까지)에서 $|\kappa|$ 가 가장 큰 곳의 $\kappa$, **부호 포함**. 트랙마다 미리 계산. 한 지점 값은 코너 peak 를 놓친다 (peak ≥ 0.7 코너 10개, 1.5 m 간격이면 중앙값 < 0.39)
+- $\lambda = (r_w\,\overline{\omega} - v_x) / \max(|v_x|, 1.0)$ — **noise 가 들어간 $v_x$** 로 계산
+- action = compose 된 명령 $\delta_{cmd}/0.4189$, $a_{cmd}/9.51$ (§3)
+- 극값 = 구간 안에서 $|x|$ 가 가장 큰 값, 부호 포함 ($\lambda$ 양수 = wheelspin, 음수 = 잠김)
+- 20 ms 균일 구간(0.14 s 까지 7개)이 **지연 최댓값 이상**이어야 한다 → $\alpha \le 0.02 / d_{\max}$. DR 에서 지연을 키우면 $\alpha$ 다시
+- reset: ego history 는 **reset 시점 관측으로** 채우고, action history 는 0
+- 넣지 않는 것: 상대차 정보, `v_lim`(§3-1 governor), `vx_planner`, 조향각(실차에 servo 각 센서 없음), $\Delta\psi$(점마다 — $e_\psi$ 와 $x,y$ 로 대신), LiDAR
+
+### 4-2. critic obs — 약 470 차원
+
+actor obs **전체** (Baisero & Amato 2022 의 unbiased 형태 — history + state) + privileged:
+
+| 항목 | 내용 |
 |---|---|
-| 경로 표현 | [[Frenet Frame]] — $(s, d, e_\psi)$, **$d>0$ = 왼쪽**. projector 는 **global raceline 에 고정** |
-| 추종 대상 | **$d_{\text{ref}}(s)$** — raceline 기준 횡 오프셋 (스택 local waypoint `d_m` 과 같은 표현, `Controller.py:630`). 추월 경로·경로 교체를 전부 이걸로 표현 (#22) |
-| 추종 오차 | **$e_d = d - d_{\text{ref}}(s)$** — 관측과 보상이 같은 정의를 쓴다 |
-| preview | 40점 × 0.5 m, **차량 좌표계** (x 전방 +, y 좌측 +) |
-| preview 내용 | $x, y, \Delta\psi, \kappa, d_{\text{left}}, d_{\text{right}}$ **+ $d_{\text{ref}}$** |
-| 넣지 않는 것 | 상대차 정보, `v_lim` (trailing 은 governor 가 처리, §3-1), `vx_planner` |
-| base 포함 | $\kappa_{\text{PP}}$ **1차원** — 무엇을 보정하는지 알아야 한다 (가속 base 는 없으므로 빠짐) |
-| 비대칭 | actor 에 $\mu$ 없음 / critic 에 $\mu$, $v_{\text{cap}}$, 실제 벽거리 포함 |
+| $\mu$ | 노면 마찰. 지금은 에피소드 상수 — 구간마다 노면을 바꾸면 "지금 위치의 μ" 로 |
+| $v_{\text{cap}}$ | 자리만 (governor 가 통과 함수라 상수 1.0) |
+| DR 파라미터 | **흔드는 것 전부**, 범위로 $[-1, 1]$ (목록은 DR 설계 때, 최대 약 13: g, b, steering offset, 조향 지연·τ, `lat_stiff_x`, armature, 센서 지연 4, velocity noise σ, wheel speed gain) |
 
-### 미확정 ⏳
+- 벽 여유는 넣지 않는다 — actor obs($e_d$, $d_{\text{ref}}$, preview $d_{\text{left/right}}$, $e_\psi$)의 결정론적 함수. sim 벽 메시를 $d_{\text{left/right}}$ 로 만들었으므로 preview 가 곧 **실제 sim 벽 좌표**. LiDAR 를 넣으며 벽을 맵 그리드로 다시 만들면 그때 벽 좌표를 추가
+- 매 step 참 상태(noise 없는 $v$, 바퀴 4개 ω, κ_i·α_i, tire force, 실제 조향각)는 넣지 않음 — `get_privileged()` 에 있어 나중에 추가 가능
 
-- ego dynamics history 길이 (노트 권고 10~20 step) 와 **간격** ← 제어 주기 측정에 의존
-- LiDAR 포함 여부와 다운샘플 수 (solo 주행에는 불필요할 수 있다)
-- 정규화 상수 (running mean/std vs 고정 스케일) — **실차에서 재현 가능해야 하므로 고정 스케일 권장**
-- preview 40×6 = 240 차원을 그대로 넣을지 압축할지
+### 4-3. 정규화
+
+- **running mean/std**, 차원별 (float64, Chan 갱신), network 입력에서 — buffer 에는 raw. clip ±5, ε 1e-8. actor·critic 같은 방식
+- 통계는 buffer 에서 뽑은 **$s$ 로만** 갱신 ($s'$ 는 안 씀 → 종료 상태가 통계에 안 들어감). 전제: **충돌 판정·종료는 접촉한 그 step**
+- $\lambda$ 항목(현재·history 평균·극값): raw 로 계산 → **symlog** → 정규화
+- 진단(학습 중 기록): 차원별 σ·clip 비율, "$\lambda$ 의 clip 한계를 λ 단위로 되돌린 값 ≥ 0.15(peak)"
+- 배포: actor 부분 $m, \sqrt{v}$ 를 동결해 checkpoint 와 함께 — `spec_hash` 에 통계 파일과 변환 순서 포함
+
+### 4-4. 실차에서 같은 값을 만드는 법 — 배포 메모 (리포트는 sim 결과만)
+
+- $v_x, v_y$: `/car_state/odom`(EKF) 은 **못 쓴다** — `ekf_pf.yaml` 이 `/vesc/odom` 의 vx·vyaw + `/pf/pose/odom` 의 x, y, yaw 만 넣고 IMU 가 없다 → $v_x \approx v_w$, $v_y \approx 0$, $\lambda \approx 0$.
+  → localization **raw pose**(EKF 출력 아님)를 그 주기로 미분 + filter. 그 지연·noise 를 재서 sim DR 범위를 다시 잡는다 (지금 `velocity_delay_s` 0.015 는 EKF v_x 를 잰 값)
+- $r, a_x, a_y$: `/livox/imu` (Livox 변환). ⚠ sim 의 $a$ 는 **COM 가속도, gravity 없음** — 실차는 IMU 위치의 specific force ($-r^2\rho_x$, $\dot r\,\rho_x$, $g\sin\theta$ 항) · 진동 noise(ForzaETH 는 raw IMU 가속도를 안 씀) · Livox 가속도가 g 단위인지 확인
+- $v_w$ = ERPM/3590 — gain 오차는 $\lambda$ 의 일정한 bias → DR 의 wheel speed gain
+- 확인 안 함: bag 기록 때의 EKF 설정 (bag `/car_state/odom` 210 Hz vs `ekf_pf.yaml` frequency 100)
+
+### 4-5. 열린 것 ⏳
+
+- 학습 중 $d_{\text{ref}}$ 를 흔들지 — 안 흔들면 그 차원은 정규화 후 항상 0 (에피소드 설계)
+- preview·history 간격 상수는 mapping_3·roboracer 근거 (감속 구간 ≤ 4.7 m, 직선 최장 약 7 m) — 직선이 긴 트랙이면 다시
+- LiDAR (solo 주행이라 이번 규약에 없음)
 
 ---
 
