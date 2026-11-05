@@ -1682,6 +1682,19 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **보상 전체**: $r_t = \Delta s_t - w_d \min(|e_{d,t}|, 1.0)$, 실패 종료 step 에 $-(c_0 + c|v|^2)$, γ 0.99, T_ep 30 s. sweep = w_d, c, c₀
 - **평가로 넘김**: 매끄러움 지표를 랩타임·RMS e_d 와 함께 · PP 단독 조향 매끄러움 기준선 · 같은 경로 비교 · 평가 출발은 고정 위치 정지 출발 · 같은 랩 수
 
+**DR 설계 D1–D5 (2026-11-05, 사용자)** — 결정마다 문헌 검색. μ·경로는 "과제 분포"(전 범위에서 잘해야 함), 나머지는 "불확실성 분포"(값 하나를 잘 모름)로 구분
+- **D1 μ ~ 현재 범위에서 균일, 최종 [0.3, 1.1]** (사용자: 처음 [0.4, 1.2] → 정규분포 질문 → 끝쪽 샘플 감소 설명 후 균일·[0.3, 1.1]). 점질량 랩: μ 0.3 ≈ 18 s · 1.1 은 모터(μ ≈ 0.97)·조향 한계에 걸침.
+  커리큘럼 (ㄹ) 축마다 ADR "마찰과 경로가 연관 — 한쪽을 올리면 양쪽에 문제" + **같은 시점에는 한 축만**(진단). [1.0, 1.0] 시작, Δμ 0.05, env 5% 를 끝값에 고정해 측정, "실패 없이 30 s" EMA > 60% 넓힘 · < 20% 좁힘, 1500 step 마다 확인. 문헌: OpenAI ADR · BayesSim(넓은 균일이 마찰 민감 과제에서 나쁨) · Active DR
+- **D2 조향 6개 전부 · 절단 Gaussian ±2σ (σ = 넓은 쪽 반폭/2, 각 쪽 따로 자름)**: g 1.0 [0.91, 1.06] σ 0.045 · b **중심 0.75°** [0.5°, 1.0°] σ 0.125°(평가도 0.75°) · offset 0 [±1°] σ 0.5° (창별 yaw 편향 −0.6~+1.0°, bag 2 좌우 비대칭도 설명) · servo delay 0.035 [0.02, 0.05] · τ 0.06 [0.04, 0.08] · rate 3.2 [2.6, 3.8] (뒤 셋은 status estimate). 문헌: CycleRL(gain 0.9–1.1·servo ±20°) · gym-khana(곱셈 Gaussian 3σ) · Tan 2018 · Chen 2022(DR 엔 history policy). 지연 최대에서도 in-flight 95 ms < action history 균일 140 ms
+- **D3 센서**: 지연 절단 Gaussian ±5 ms(5 ms 격자 → 72/14/14%) pose 5 · velocity 15 · **imu 15**(실차에서 IMU 4개를 20 ms 평균 → 지연 +10 ms) · wheel 10 ms. v_x·v_y white σ 0.05 m/s 고정(실차 속도원 = kiss twist 가정). **a_x·a_y white, σ_a ~ 에피소드마다 [1.1, 2.8] m/s²**. wheel gain 1.0 ± 1%. pose noise 없음(한계).
+  bag 분석: Livox 가속도 **g 단위 확인**(|a| 0.998) · 주행 중 IMU noise 200 Hz 2.6–4.6 m/s², 50 Hz 20 ms 평균 1.1–1.4(13_29)·2.6–2.8(13_46) — bag 사이 2배 · `kiss_loc_twist` v_x noise 0.049 m/s, 정속에서 바퀴와 차이 σ 0.03 · ERPM/3590 대 kiss 0.993–0.994 · EKF odom v_x 는 바퀴보다 4% 높음(원인 미확인)
+- **D4 차량·타이어 (나) 한계 거동**: lat_stiff_x **e 기준 균일** e ~ U(0, 0.82) → X(e = 0 이면 1) · armature 절단 Gaussian 7.5e-4 [5e-4, 1e-3](ω_n·Δt ≤ 0.98) · C' 20 [10, 30] · **x₁ = 3/C'** (brush 포화 slip 과 곡선 꺾이는 점을 묶음 — env_cfg 가 원래 맞춰 둔 것) · y₂ 0.8 [0.7, 0.9]. 문헌: TC-Driver(마찰·cornering stiffness) · RC drift 2025(Pacejka B·C·D) · ASTM E1859(peak·critical slip·slip-to-skid) · Czechmanowski 2025(중심 1 정규 배율).
+  구현 주의: 가속 모드 m_eff 를 env 별 armature 로. 한계: 실차 armature 1.2e-4 는 안정 범위 밖, lateral peak 뒤 거동 없음, friction_vs_slip 은 longitudinal slip 에만
+- **D5 나머지 DR = (다) 강도 k ∈ [0, 1] 하나로** — 절단 Gaussian 의 σ·범위 폭, e 폭(0.43 중심에서 양쪽 따로), noise σ 를 k 배. k 0 시작·0.1 단계, 전체 env(μ 끝값 env 제외)로 문턱 확인. ADR 축 = μ 아래·μ 위·경로·k, 한 번에 하나(최소 28 회). 뽑는 시점: 파라미터·σ_a 는 에피소드마다, noise 는 매 step. 중심값 env 없음 (ㄱ). **에피소드마다 DR 값·결과 기록**(k 가 멈추면 병목 파라미터 진단).
+  (나) 각각 ADR 은 확인 약 78 회·4.8 억 transition 추정이라 기각. 문헌: OpenAI ADR · DeXtreme VADR · Peng 2018·legged_gym(고정 범위)
+- **critic privileged 약 19**: μ, v_cap, 조향 6, 센서 지연 4, σ_a, wheel gain, e, armature, C', y₂ → critic 약 474 차원
+- **평가로 넘김**: DR 중심값(b 0.75°) · noise 는 중심값(σ_v 0.05, σ_a 1.95)으로, noise 0 은 추가 평가 · 고정 μ 집합(예: 0.3, 0.5, 0.7, 0.9, 1.1)
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다

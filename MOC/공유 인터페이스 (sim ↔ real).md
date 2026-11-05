@@ -251,7 +251,7 @@ actor obs **전체** (Baisero & Amato 2022 의 unbiased 형태 — history + sta
 |---|---|
 | $\mu$ | 노면 마찰. 지금은 에피소드 상수 — 구간마다 노면을 바꾸면 "지금 위치의 μ" 로 |
 | $v_{\text{cap}}$ | 자리만 (governor 가 통과 함수라 상수 1.0) |
-| DR 파라미터 | **흔드는 것 전부**, 범위로 $[-1, 1]$ (목록은 DR 설계 때, 최대 약 13: g, b, steering offset, 조향 지연·τ, `lat_stiff_x`, armature, 센서 지연 4, velocity noise σ, wheel speed gain) |
+| DR 파라미터 | **흔드는 것 전부** (2026-11-05 확정, 약 17): 조향 g·b·offset·servo delay·τ·rate, 센서 지연 4(pose·velocity·imu·wheel), σ_a, wheel speed gain, 하중 탄력성 e(lat_stiff_x 대신), armature, C', y₂. 범위·분포는 [[rl-racing 구조]] §8-6 「DR 설계」 |
 
 - 벽 여유는 넣지 않는다 — actor obs($e_d$, $d_{\text{ref}}$, preview $d_{\text{left/right}}$, $e_\psi$)의 결정론적 함수. sim 벽 메시를 $d_{\text{left/right}}$ 로 만들었으므로 preview 가 곧 **실제 sim 벽 좌표**. LiDAR 를 넣으며 벽을 맵 그리드로 다시 만들면 그때 벽 좌표를 추가
 - 매 step 참 상태(noise 없는 $v$, 바퀴 4개 ω, κ_i·α_i, tire force, 실제 조향각)는 넣지 않음 — `get_privileged()` 에 있어 나중에 추가 가능
@@ -268,7 +268,8 @@ actor obs **전체** (Baisero & Amato 2022 의 unbiased 형태 — history + sta
 
 - $v_x, v_y$: `/car_state/odom`(EKF) 은 **못 쓴다** — `ekf_pf.yaml` 이 `/vesc/odom` 의 vx·vyaw + `/pf/pose/odom` 의 x, y, yaw 만 넣고 IMU 가 없다 → $v_x \approx v_w$, $v_y \approx 0$, $\lambda \approx 0$.
   → localization **raw pose**(EKF 출력 아님)를 그 주기로 미분 + filter. 그 지연·noise 를 재서 sim DR 범위를 다시 잡는다 (지금 `velocity_delay_s` 0.015 는 EKF v_x 를 잰 값)
-- $r, a_x, a_y$: `/livox/imu` (Livox 변환). ⚠ sim 의 $a$ 는 **COM 가속도, gravity 없음** — 실차는 IMU 위치의 specific force ($-r^2\rho_x$, $\dot r\,\rho_x$, $g\sin\theta$ 항) · 진동 noise(ForzaETH 는 raw IMU 가속도를 안 씀) · Livox 가속도가 g 단위인지 확인
+  → **후보 (2026-11-05 bag 분석): `kiss_loc_twist`** (200 Hz, noise 0.049 m/s, 정속에서 바퀴와 차이 σ 0.03) — 바퀴 odom 을 쓰지 않는지 stack 설정 확인 필요. sim DR 의 σ_v 0.05 는 이 속도원을 가정. EKF odom v_x 는 바퀴 속도보다 4% 높다(원인 미확인)
+- $r, a_x, a_y$: `/livox/imu` (Livox 변환). **가속도는 g 단위 — × 9.81** (bag 확인, 2026-11-05). control 주기 20 ms 동안의 IMU 4개를 평균해 쓴다(진동 noise 50 Hz 평균 후 1.1–2.8 m/s², sim DR 의 σ_a 와 imu 지연 15 ms 가 이 처리를 가정). ⚠ sim 의 $a$ 는 **COM 가속도, gravity 없음** — 실차는 IMU 위치의 specific force ($-r^2\rho_x$, $\dot r\,\rho_x$, $g\sin\theta$ 항)
 - $v_w$ = ERPM/3590 — gain 오차는 $\lambda$ 의 일정한 bias → DR 의 wheel speed gain
 - 확인 안 함: bag 기록 때의 EKF 설정 (bag `/car_state/odom` 210 Hz vs `ekf_pf.yaml` frequency 100)
 
