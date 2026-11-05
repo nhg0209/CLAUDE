@@ -1695,6 +1695,15 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **critic privileged 약 19**: μ, v_cap, 조향 6, 센서 지연 4, σ_a, wheel gain, e, armature, C', y₂ → critic 약 474 차원
 - **평가로 넘김**: DR 중심값(b 0.75°) · noise 는 중심값(σ_v 0.05, σ_a 1.95)으로, noise 0 은 추가 평가 · 고정 μ 집합(예: 0.3, 0.5, 0.7, 0.9, 1.1)
 
+**SAC 설계 S1–S5 (2026-11-05, 사용자)** — 결정마다 문헌 검색. skrl 1.4.3 코드 직접 확인
+- **S1 병렬·update = (다)**: N_env 4096 · batch 16384 · G **4 로 시작**(최대 8) · ρ = G·B/N_env = 16–32 · buffer **2 × 10⁶** (`memory_size` 488/env = 9.8 s, 약 7.6 GB, GPU 예산 30 GB). 첫 학습에서 env step·gradient step 시간 따로 재서 G 조정. 문헌: PQL(Li 2023) · FastTD3(Seo 2025, IsaacLab DR humanoid 에서 PPO 보다 빠름) · FastSAC
+- **S2 network = (가) MLP [256, 256] ReLU, critic 은 hidden 마다 LayerNorm**, twin + target. 조향 평균 head 0 · 가속 평균 bias **0.3**(a₀ ≈ 2.8 m/s²) · log std head 상태 의존, weight 0·bias −2(σ₀ = e⁻²), clamp [−5, 2] · **burn-in 250 env step**(약 100만 transition, actor·α 고정, critic 만) · **무작위 warmup 끔**(`random_timesteps = 0` — 켜면 조향 residual 이 ±0.40 무작위). 계산 추정(10 TFLOPS): (가) env step 당 약 30 ms, (나) 100, (다) 200. 문헌: BRO(정규화한 critic 키우기 > replay ratio) · SimBa · RLPD · Residual Policy Learning(0 초기화·burn-in) · 2026 residual Q-learning 붕괴(tanh 경계)
+- **S3 entropy = (나) 차원별 α**, target 각 −1, α₀ **0.01**(skrl 기본 0.2 는 초반 entropy 항 −0.24/step 이 보상 0.02–0.1 보다 큼), burn-in 중 고정. 근거: target 이 합(−2)이면 가속이 포화될 때(H_accel ≈ −4.6) 도달 불가 → α 폭주가 조향 noise 를 키움. 남는 효과: 가속 target −1 이 포화를 조금 막음(고μ 출발·직선) → α_accel·가속 평균 분포 기록, 필요하면 가속 target 을 낮춤. 문헌: SAC v2 · Seyde 2021(bang-bang) · Meta-SAC · TES-SAC
+- **S4 CAPS = 차원별, D = (Δμ_i)²**(사용자: norm 에서 제곱으로 변경 — 계단 모양 없음, 대신 작은 떨림이 남을 수 있음), λ_T,steer ∈ {0.5, 1.5, 5} sweep, λ_T,accel = 0.5·λ_T,steer, λ_S = λ_T. σ_s(raw 단위): v 0.05 · a 2.0 · λ 0.01 · r 0.02 · e_d·preview 위치 0.01 m · e_ψ 0.5° · 트랙 기하·action history 0. burn-in 직후부터. 문헌: CAPS(σ 는 측정 noise·허용 오차) · L2C2(σ 너무 크면 전역 매끄러움) · 2024 후속(temporal 효과 > spatial) · 축소 RC 레이싱 CAPS(2022, 2023)
+- **S5 = Adam · 학습률 3e-4(actor·critic), α 1e-3 · τ 0.005(target 약 1 s) · actor·α·CAPS 는 critic 2 번에 1 번(TD3) · gradient norm clip 1.0** (norm·clip 비율 기록, 늘 걸리면 10). 문헌: SAC 원논문 · TD3 · BRO(weight decay — 작은 critic 이라 안 씀)
+- **skrl 수정 목록(6)**: ① 비대칭 입력(`states` = [actor 455, privileged], actor 는 앞만) ② truncated 에서 bootstrap ③ 통계는 s 로만 ④ CAPS(차원별 제곱) ⑤ 차원별 log π·α ⑥ actor 갱신 간격. 설정 `random_timesteps = 0`, burn-in
+- **학습 중 기록 목록**: 차원별 σ·clip 비율 · λ clip 한계(λ 단위 ≥ 0.15) · α_steer·α_accel·가속 평균 분포 · gradient norm·clip 비율 · ADR 상태(μ 범위·경로 단계·k) · 에피소드별 DR 값·결과 · env step·gradient step 시간
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
