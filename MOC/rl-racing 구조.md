@@ -1704,6 +1704,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **skrl 수정 목록(6)**: ① 비대칭 입력(`states` = [actor 455, privileged], actor 는 앞만) ② truncated 에서 bootstrap ③ 통계는 s 로만 ④ CAPS(차원별 제곱) ⑤ 차원별 log π·α ⑥ actor 갱신 간격. 설정 `random_timesteps = 0`, burn-in
 - **학습 중 기록 목록**: 차원별 σ·clip 비율 · λ clip 한계(λ 단위 ≥ 0.15) · α_steer·α_accel·가속 평균 분포 · gradient norm·clip 비율 · ADR 상태(μ 범위·경로 단계·k) · 에피소드별 DR 값·결과 · env step·gradient step 시간
 
+**구현 계획 (2026-11-05 사용자 동의, 순서대로)** — 프롬프트 하나 = 목적 하나 ≈ 30 줄
+- **A 관측 규약 `common/`**: A1 스펙 선언·`spec_hash` → A2 preview 31점 배치·κ̂ 미리 계산 → A3 preview 생성(차량 좌표·보간) → A4 λ·symlog → A5 history 버퍼(26 샘플, 평균 + 극값, reset 채움) → A6 `build_actor_obs` (B, 455)
+- **B env**: B1 `get_actor_obs` → B2 `get_critic_obs` → B3 실패 종료 3가지 → B4 truncation 30 s·첫 에피소드 무작위 → B5 보상 → B6 출발 분포 → B7 d_ref 생성기 → B8 d_ref 연결
+- **C DR**: C1 샘플러(절단 Gaussian·균일·e→X·k) → C2 car.yaml `dr:` → C3 조향(offset 신규) → C4 센서 → C5 차량·타이어(m_eff) → C6 privileged 연결 → C7 커리큘럼 관리자(ADR 4축) → C8 에피소드 기록
+- **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
+- 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
