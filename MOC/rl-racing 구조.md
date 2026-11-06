@@ -1726,6 +1726,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     d_ref 마지막 단계(교체 + 합류) 전에 재검토, B6b 의 실패 종류별 횟수·평균 실패 속력으로 감시
   - 정정 (Claude): "정지에서 음수 가속이 막혀(`block_reverse`) 역주행 실패는 일부러 만들기 어렵다" 는 틀림 — ⑪(다) u = −0.3 정지 출발이 3 s 안에 역주행 종료(0.0497 m).
     `block_reverse` 는 v_long ≤ 0 일 때만 막는다. 정지 근처 역주행 종료의 벌점도 사실상 c₀ 뿐 → 같은 감시 대상. 원인(스폰 정착 과도와의 관계)은 B7 에서
+- ✅ **B6a `10b5ef8` 서버 ⑬ PASS (2026-11-06)**: 정지 출발 1 s Σprogress 1.4261 m = ½·(0.3·9.51)·1² · offset 0.1 m → track −0.0300 · 벽 fail_speed 7.23 m/s → term −21.93 = −(1 + 0.4·7.23²) · truncation term 0
+  - 벽 step 에서 track = −0.30 (포화) → 그 지점은 raceline 에서 벽까지 1 m 넘음, |e_d| > 1 m 띠에서는 추종 항이 경로 쪽으로 당기지 않는다(R2 에서 알고 정함)
+  - 벽 step progress 0.1571 > v·Δt 0.1447 (×1.086) — frenet 진행량 $\Delta s = v\Delta t\cos e_\psi/(1-\kappa d)$ 가 커브 안쪽에서 커지는 효과.
+    **안쪽 자르기 유인**: 안쪽으로 d 만큼 가면 이득 $v\Delta t\,\kappa d/(1-\kappa d)$ vs 비용 $w_d d$ → 이득 조건 $\frac{r\,\Delta t}{1-\kappa d} > w_d$ ($r = v\kappa$ = 경로 따라갈 때 yaw rate).
+    마찰 한계 $r \le \sqrt{\mu g \kappa}$ = 5.2 rad/s (μ 1.1, κ 2.52) → $r\Delta t \le 0.10$. w_d 0.3 이면 κd > 0.65 (커브 깊숙한 안쪽, 벽이 허락할 때)에서만 이득.
+    → **sweep 에서 w_d < 0.1 이면 작은 d 에서도 안쪽 자르기가 이득** — sweep 범위 정할 때 하한 근거
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
