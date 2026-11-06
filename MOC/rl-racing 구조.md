@@ -1737,6 +1737,17 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   reset 없는 step 엔 log 를 지움. 벽 에피소드 2.0 s·truncation 0.98 s(49 step) 일치. **B6 보상 완료**
 - **B7 시작 전 측정** — 스폰 정착 과도(⑫ 다음 step vx −0.067 m/s, ⑪(다) 정지에서 u = −0.3 로 역주행 종료)의 크기·시간을 먼저 잰 뒤 1단계(문헌·선택지)로.
   가설 ① −0.067 은 pitch 성분 $v_{link,x} = v_{com,x} - \omega_y h$ ② 정지 후진은 `block_reverse` 누수(v_long 이 정착 진동으로 잠깐 > 0 일 때 음수 토크가 걸림)
+- **⑭ 측정 `b47a5b8` (env.reset 정지 스폰, 200 Hz)**:
+  - 낙하: z 5 mm → 자유낙하 약 30 ms 뒤 접지 → 약 0.1 s 에 −1.1 mm 로 정착. u = 0 이면 깨끗함(|v| < 0.0005 m/s, pitch 무시할 만함)
+  - **처음 약 30 ms(1.5 control step) 동안 바퀴가 공중** — 토크가 무부하 바퀴를 돌림($\Delta v_w = r_w T \Delta t / 4J$, 5 ms 당 0.0436 m/s, r_w ≈ 0.051 m 와 일치).
+    u = +0.3 이면 접지 때 바퀴가 0.26 m/s 로 돌고 있어 차가 15 ms 에 0 → 0.25 m/s(약 17 m/s² > μg), 바퀴는 −0.13 m/s 까지 흔들림 — 실차에 없는 과도
+  - **가설 ② 맞음**: u = −0.3 에서 누수 2 번(5 ms 공중 — v_long 이 float noise 로 0 을 넘음, 30 ms 접지 튐 +0.0002) → 공중에서 바퀴가 뒤로 돌고 → 접지 때 차를 −0.077 m/s 로 밀어냄
+    → 그 뒤 `block_reverse` 는 **토크 0(브레이크 아님)** 이라 계속 뒤로 굴러감: 1 s 에 −2.75 cm, ⑪(다) 3 s 에 5 cm 역주행 종료의 원인
+  - **가설 ① 틀림**: v_link ≈ v_com (pitch rate 작음). (v_link − v_com)/(−ω_y) = 0.0769 는 강체 운동학 항등식이라 늘 h(COM 이 base_link 위 7.7 cm)가 나옴 — 가설의 증거가 아님.
+    정지 스폰 (다) 에서는 첫 물리 step v_link ≈ +0.001 → ⑫ 의 −0.067 이 재현되지 않음
+  - **가설 ③ (새로)**: ⑫ 는 2.7 m/s 로 달리던 env 를 step 안에서 reset. 첫 substep 에 타이어 모델이 reset 전 값을 읽을 수 있음 — Fz(ContactSensor 가 PhysX 마지막 접촉력 재조회, 차는 지금 공중)·
+    바퀴 접지 속도(`body_lin_vel_w`) → ω = 0 이라 slip ≈ −2.7 m/s → 포화 제동 → 뒤로 걷어차임. 크기 $\mu g \Delta t_{phys}$ = 0.049 m/s/substep ≈ −0.067. 맞으면 학습 중 거의 모든 reset 에 영향 → ⑭(라) 로 측정
+  - 측정 뒤 1단계로 갈 결정 둘: **(A) 스폰 공중 구간**(높이·정착 시간·첫 토크) **(B) 정지에서 음수 a_cmd 의 의미**(지금: 토크 0 → 누수·자유 굴러감)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
