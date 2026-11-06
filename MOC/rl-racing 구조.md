@@ -1770,6 +1770,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **B7b `8b07577` 정착 0.12 s** — `settle_s` (reset 마다 cfg 에서 읽음), 정착 중 실제 명령 (0, 0)·history 에도 0, `extras["settling"]`. ⑩–⑬ 은 시험 안에서 정착 끔(회귀 숫자 유지).
   서버 ⑮ PASS: step 1–6 전부 0, step 7 accel 2.853 (= 0.3·9.51)·δ 0.0652 (hist 0.1556 = δ/δ_max), 정착 끝 z −1.112 mm·v_com 7e-6·ω_y 5e-4.
   첫 active step 끝 v_com 0.0597 ≈ 2.853 × 0.02 — 접지 과도 없이 출발. ⑭ (나)(다)(라) 의 0.1 s 표가 (가) 와 같아짐, (나) 역주행 종료 0.32 s = 0.12 + 0.20
+- ✅ **B7c `43afb81` (`spawn.sample_start_states`, pytest 6) · B7d `a6f85ba` + 시험 수정 (spawn_mode "random", policy 모드 기본, tracker s0 힌트, `Spawn/*` 로그) — B7 출발 분포 완료**
+  - ⑯: 4000 뽑기 s 10구간 ±15% 안·|e_d| ≤ 0.1·|e_ψ| ≤ 5°·여유 최소 0.044 m·전부 첫 시도 통과. **raceline 경로 위 여유 최소 0.150 m (s 11.59 m), ≤ 0.01 인 곳 0/422** → 대체 ValueError 위험 없음(맵 바꿀 때 다시 확인)
+  - reset 20 회: d = e_d (2 mm)·e_ψ (1e-3 rad)·벽 여유·정착 중 종료 없음. s 차이는 **frenet 투영의 선분(chord) 기하**: 격자점 접선 법선으로 옮긴 점은
+    커브 **안쪽**이면 이웃 두 선분에 같은 거리라 발이 $s_{idx} \pm |e_d\kappa|\Delta s_{grid}/2$ (부호는 동점 처리), **바깥쪽**이면 두 발이 다 선분 밖이라 격자점 자체(차이 0) — 표 40 개 전부 이 패턴
+  - 따라 나오는 성질(기록만): 같은 이유로 진행량 Δs 가 커브 바깥(d·κ < 0)에서는 격자점 근처에서 멈췄다 가고, 안쪽에서는 앞으로 건너뜀 — 크기 $|d\kappa|\Delta s_{grid}$ (d 0.1·κ 1 이면 1 cm),
+    격자점마다 누적 s 는 정확해서 쌓이지 않는 0-평균 떨림. d_ref 가 커져 |d| 1 m 근처로 가면 커짐 → 보상 Δs 노이즈가 문제 되면 격자를 촘촘히 하거나 원호 보간(그때 결정)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
