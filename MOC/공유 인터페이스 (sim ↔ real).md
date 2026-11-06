@@ -181,6 +181,15 @@ a_x = a_{x,\theta}\ \ (\text{base 없음}), \qquad
 > 상한에 계속 붙어 있으면 넓히고, 20% 이내만 쓰면 조인다. → [[Residual Policy Learning]] 구현 ②
 > 가속은 residual 이 아니므로 bound 개념이 없다. 실제 제한은 VESC $v_{\text{cap}}$ 과 마찰이 한다.
 
+> [!important] 음수 가속 = 음수 전류 (후진 허용) — 실차 배포 요구사항 (2026-11-06, 사용자 결정 B7 (B3))
+> sim 은 음수 $a_x$ 를 **정지·후진 영역에서도 그대로 음수 토크**로 건다(후진 금지 없음). 앞으로 갈 때는 제동, 정지에서는 후진 가속.
+> → 실차 배포 코드도 음수 가속을 **VESC 전류 명령(`set_current`)의 음수**로 보낸다. brake 전류(`set_current_brake` — 회전 반대 제동만, 후진 안 함)로 보내면 정지 근처에서 sim 과 다르다.
+> 후진은 학습에서 E1 역주행 실패(연속 Σ Δs < −5 cm)로 벌을 받는다. 근거·검토는 [[rl-racing 구조]] §8-6 「구현 진행」 B7
+
+> [!note] 출발 = 바닥에 정착한 정지 상태 (B7 (A2))
+> sim 은 reset 뒤 **0.12 s 정착**(토크 0·조향 0, action 무시) 후 policy 가 차를 움직인다 — 실차도 바닥에 놓인 정지 상태에서 출발.
+> 정착 중 transition 은 학습 데이터에서 뺀다. 실차 배포 시작 때 history 는 "정지해 서 있던 상태"로 채워진다(sim 정착 구간과 같은 모양)
+
 > [!warning] 초기화가 두 head 에서 다르다
 > - 조향 head: weight·bias 를 0 근처 → **base(PP) 그대로 출발**
 > - 가속 head: weight 만 작게, **bias 는 약한 양의 가속** → 0 이면 차가 안 움직여 progress 가 0 이다

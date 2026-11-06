@@ -1755,9 +1755,19 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **B7-fix `5baa3ff`** (`_tire_reset_pending`, 첫 substep 에 u·du·f·`wheel_airborne_s` 0): ⑭(라) 가 정지 스폰 (다) 와 숫자까지 같아짐(5 ms z 4.748·v_com 0, 접지 뒤도 동일), ⑫(가′) obs vx +0.0006 (기준 −0.01 < vx < 0.2)
 - **B7 1단계 열림 (2026-11-06)** — (A) 스폰 공중 구간: 정착 높이 스폰 / 정착 시간 / 공중 토크 차단 / 그대로 · (B) 정지 음수 a_cmd: 문턱 보정 / brake 의미(ω 반대 토크, 후진 안 함) / 후진 허용.
   (B) 는 실차 배포가 음수 가속을 VESC 의 어떤 명령(전류 vs brake 전류)으로 보내는지가 근거
+- **B7 결정 (사용자, 2026-11-06)**:
+  - **(A2) 정착 시간 0.12 s (6 control step)** (사용자: "실차도 바닥에 정착시킨 상태로 출발") — 토크 0·조향 명령 0·policy action 무시, history 에는 실제 걸린 action(0)과 ego,
+    실패 판정·에피소드 시간은 그대로. 검토: 처음 제안 30 ms 는 **접지 순간**(z +0.16 mm, 하강 0.3 m/s) — 최대 압축 55 ms, 정착 높이와 0.001 mm 는 95 ms, carcass 정지 정착 125 ms(c 15) → 0.12 s
+  - **정착 중 transition = (ㄱ) 학습 데이터에서 뺌** — env 가 `extras` 에 정착 표시, SAC 가 저장 안 함(skrl 수정 7번째). 이유: 정착 중·정착 직후 정지 상태는 obs 가 거의 같은데
+    action 효과가 다름 → 출발 상태(μ 추론 시작점) Q 오염. (ㄴ) 실제 걸린 action 으로 바꿔 넣기 · (ㄷ) 그대로 는 기각
+  - **(B3) 후진 허용** — `block_reverse` 삭제, policy·command 두 모드 모두(평가에서 같은 차량 모델). 사용자: "역주행 종료가 계속되면 전진을 빠르게 시작하는 policy 를 학습"
+    검토: 초기 음수 가속 확률 ≈ 1.3% (bias 0.3, σ₀ e⁻²) · 앞으로 가며 제동은 이미 음수 토크 허용이라 바뀌는 건 정지·후진 영역뿐 · 누수·자유 굴러감은 같이 사라짐 ·
+    **실차 배포 요구사항**: 음수 가속 = VESC `set_current` 음수 (「공유 인터페이스」에 기록) · **후진이 가장 싼 자살 경로**($\sqrt{2\varepsilon/a}$ ≈ 0.19 s, 벌점 ≈ c₀) → B6b 역주행 비율·속력 감시, d_ref 마지막 단계 전 c₀ 재검토 때 같이
+  - command 모드(PP 기준선) 정착: 지금은 policy 모드만. 평가 설계 때 runner 에도 같은 정착을 둘지 결정
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
-- **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
+- **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
+  **skrl 수정 7번째: 정착 중 transition 은 저장하지 않음**(B7 (ㄱ), env 의 `extras` 정착 표시) · skrl `environment_info="log"`
 
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
