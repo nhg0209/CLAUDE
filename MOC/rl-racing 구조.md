@@ -1764,6 +1764,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     검토: 초기 음수 가속 확률 ≈ 1.3% (bias 0.3, σ₀ e⁻²) · 앞으로 가며 제동은 이미 음수 토크 허용이라 바뀌는 건 정지·후진 영역뿐 · 누수·자유 굴러감은 같이 사라짐 ·
     **실차 배포 요구사항**: 음수 가속 = VESC `set_current` 음수 (「공유 인터페이스」에 기록) · **후진이 가장 싼 자살 경로**($\sqrt{2\varepsilon/a}$ ≈ 0.19 s, 벌점 ≈ c₀) → B6b 역주행 비율·속력 감시, d_ref 마지막 단계 전 c₀ 재검토 때 같이
   - command 모드(PP 기준선) 정착: 지금은 policy 모드만. 평가 설계 때 runner 에도 같은 정착을 둘지 결정
+- ✅ **B7a `0b19132` 후진 허용** — `accel_to_wheel_torque` 에서 `block_reverse`·`v_long` 인자 삭제. 서버: ⑪(다) 역주행 종료 0.20 s(예측 0.22)·이동 0.047 m, ⑭(나) 0.20 s 종료,
+  ④⑤⑨⑩⑫⑬ 숫자 불변. 다른 사용처: `eval/replay_controller.py`·`stack_controller.py` 가 replay 창 끝에 v_target = 0 → `vesc_speed_accel` = k_v(0 − v_wheel) 는
+  v_wheel < 0 이면 부호가 바뀌어 0 근처로 되돌림(실차 VESC 속도 루프의 ERPM 0 유지와 같은 모양) — 이전엔 v ≤ 0 에서 자유 굴러감이었음. 조치 없음
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
