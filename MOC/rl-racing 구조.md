@@ -1748,6 +1748,10 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **가설 ③ (새로)**: ⑫ 는 2.7 m/s 로 달리던 env 를 step 안에서 reset. 첫 substep 에 타이어 모델이 reset 전 값을 읽을 수 있음 — Fz(ContactSensor 가 PhysX 마지막 접촉력 재조회, 차는 지금 공중)·
     바퀴 접지 속도(`body_lin_vel_w`) → ω = 0 이라 slip ≈ −2.7 m/s → 포화 제동 → 뒤로 걷어차임. 크기 $\mu g \Delta t_{phys}$ = 0.049 m/s/substep ≈ −0.067. 맞으면 학습 중 거의 모든 reset 에 영향 → ⑭(라) 로 측정
   - 측정 뒤 1단계로 갈 결정 둘: **(A) 스폰 공중 구간**(높이·정착 시간·첫 토크) **(B) 정지에서 음수 a_cmd 의 의미**(지금: 토크 0 → 누수·자유 굴러감)
+- **⑭(라) `054229d` — 가설 ③ 맞음 (Isaac Lab v2.3.2 두 번째 함정)**: `DirectRLEnv.step()` 은 `_reset_idx()` 뒤에 `sim.forward()` 를 부르지 않는다(direct_rl_env.py:396-401, `reset()` 은 312-317 에서 부름).
+  reset 직후 **첫 물리 substep 만** 바퀴 `body_lin_vel_w` = reset 전 PhysX 값(world −2.73 → v_ground 2.78), ContactSensor Fz 합 34.0 N(= m g, 차는 5 mm 공중), ω = 0(우리가 씀)
+  → slip −2.78 m/s → tire_fx 합 −31.8 N ≈ −0.93 Fz → $\Delta v_{com} = F\Delta t/m = -31.8 \cdot 0.005/3.47 = -0.046$ (측정 −0.045), 같은 힘이 접지점(COM 아래 7.7 cm)에서 pitch 를 만들어 v_link −0.067.
+  둘째 substep 부터 Fz 0·v_ground 정상. 수정: reset 된 env 의 첫 substep 은 타이어 u·force 를 0 으로(스폰은 ω = v0/r·u = 0 이라 참 force 가 0). `sim.forward()` 호출은 접촉 센서를 못 고쳐 안 씀
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
