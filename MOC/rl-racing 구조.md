@@ -1752,6 +1752,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   reset 직후 **첫 물리 substep 만** 바퀴 `body_lin_vel_w` = reset 전 PhysX 값(world −2.73 → v_ground 2.78), ContactSensor Fz 합 34.0 N(= m g, 차는 5 mm 공중), ω = 0(우리가 씀)
   → slip −2.78 m/s → tire_fx 합 −31.8 N ≈ −0.93 Fz → $\Delta v_{com} = F\Delta t/m = -31.8 \cdot 0.005/3.47 = -0.046$ (측정 −0.045), 같은 힘이 접지점(COM 아래 7.7 cm)에서 pitch 를 만들어 v_link −0.067.
   둘째 substep 부터 Fz 0·v_ground 정상. 수정: reset 된 env 의 첫 substep 은 타이어 u·force 를 0 으로(스폰은 ω = v0/r·u = 0 이라 참 force 가 0). `sim.forward()` 호출은 접촉 센서를 못 고쳐 안 씀
+- ✅ **B7-fix `5baa3ff`** (`_tire_reset_pending`, 첫 substep 에 u·du·f·`wheel_airborne_s` 0): ⑭(라) 가 정지 스폰 (다) 와 숫자까지 같아짐(5 ms z 4.748·v_com 0, 접지 뒤도 동일), ⑫(가′) obs vx +0.0006 (기준 −0.01 < vx < 0.2)
+- **B7 1단계 열림 (2026-11-06)** — (A) 스폰 공중 구간: 정착 높이 스폰 / 정착 시간 / 공중 토크 차단 / 그대로 · (B) 정지 음수 a_cmd: 문턱 보정 / brake 의미(ω 반대 토크, 후진 안 함) / 후진 허용.
+  (B) 는 실차 배포가 음수 가속을 VESC 의 어떤 명령(전류 vs brake 전류)으로 보내는지가 근거
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
