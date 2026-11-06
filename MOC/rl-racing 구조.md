@@ -1732,6 +1732,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     **안쪽 자르기 유인**: 안쪽으로 d 만큼 가면 이득 $v\Delta t\,\kappa d/(1-\kappa d)$ vs 비용 $w_d d$ → 이득 조건 $\frac{r\,\Delta t}{1-\kappa d} > w_d$ ($r = v\kappa$ = 경로 따라갈 때 yaw rate).
     마찰 한계 $r \le \sqrt{\mu g \kappa}$ = 5.2 rad/s (μ 1.1, κ 2.52) → $r\Delta t \le 0.10$. w_d 0.3 이면 κd > 0.65 (커브 깊숙한 안쪽, 벽이 허락할 때)에서만 이득.
     → **sweep 에서 w_d < 0.1 이면 작은 d 에서도 안쪽 자르기가 이득** — sweep 범위 정할 때 하한 근거
+- ✅ **B6b `5432a80` 서버 ⑬(마)(바) PASS** — `extras["log"]`: `Episode_Reward/{progress,track,term,total}` · `Episode_Termination/{wall,reverse,spin,time_out}` 비율 ·
+  `Episode_FailSpeed/{종류}`(0개면 키 없음) · `Episode/length_s`·`count`. 값은 0-dim tensor (skrl 1.4.3 은 numel 1 인 Tensor 만 기록, 키는 D6 에서 `environment_info="log"`).
+  reset 없는 step 엔 log 를 지움. 벽 에피소드 2.0 s·truncation 0.98 s(49 step) 일치. **B6 보상 완료**
+- **B7 시작 전 측정** — 스폰 정착 과도(⑫ 다음 step vx −0.067 m/s, ⑪(다) 정지에서 u = −0.3 로 역주행 종료)의 크기·시간을 먼저 잰 뒤 1단계(문헌·선택지)로.
+  가설 ① −0.067 은 pitch 성분 $v_{link,x} = v_{com,x} - \omega_y h$ ② 정지 후진은 `block_reverse` 누수(v_long 이 정착 진동으로 잠깐 > 0 일 때 음수 토크가 걸림)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
