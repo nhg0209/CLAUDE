@@ -1719,6 +1719,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   같은 sim 시각 안(reset step ~ 다음 step 첫 `sim.step()`)에서 `root_link_lin_vel_b`·`root_link_ang_vel_b` 가 reset **전** 값을 준다 → reset 직후 obs vx 2.78·λ = −1,
   history 26칸·센서 지연 버퍼 초기값·첫 substep `v_long` 이 전부 오염. 수정: `write_root_link_velocity_to_sim` (스폰 ω = 0 이라 PhysX 값 동일). pose·joint_vel·body_acc 는 각 write 가 직접 써서 정상
 - **남은 B (커밋 번호)**: B6 보상 → B7 출발 분포 → B8 d_ref 생성기 → B9 d_ref 연결
+- **B6 보상 계수 시작값 (사용자, 2026-11-06)**: $r_t = \Delta s_t - 0.3\min(|e_{d,t}|, 1.0)$, 실패 step 에 더해 $-(1.0 + 0.4|v|^2)$, truncation 벌점 없음.
+  모두 참값(Δs = `s_total` 차이, e_d = d − d_ref, |v| = `fail_speed`). 계수 넷은 env_cfg 기본값 = 첫 학습값 = sweep 시작점. 나눔: B6a 보상 + ⑬ / B6b reset 전 에피소드 통계
+  - w_d 0.3 = "오차 2 cm ↔ 속도 0.3 m/s" ($\Delta v_{eq} = w_d|e_d|/\Delta t$). c 0.4 = 5 m/s 에서 벌점 = 잃는 return 2v
+  - **저속 자살 유인 검토 → (ㄱ) c₀ 1.0 유지**: 1 m d_ref 교체·선형 수렴 T_c 에서 "계속" vs "충돌" return — v 2 m/s·T_c 1 s 는 c₀ > 0.9, v 1 m/s 는 > 4.1, v 2 m/s·T_c 2 s 는 > 5.6 필요.
+    d_ref 마지막 단계(교체 + 합류) 전에 재검토, B6b 의 실패 종류별 횟수·평균 실패 속력으로 감시
+  - 정정 (Claude): "정지에서 음수 가속이 막혀(`block_reverse`) 역주행 실패는 일부러 만들기 어렵다" 는 틀림 — ⑪(다) u = −0.3 정지 출발이 3 s 안에 역주행 종료(0.0497 m).
+    `block_reverse` 는 v_long ≤ 0 일 때만 막는다. 정지 근처 역주행 종료의 벌점도 사실상 c₀ 뿐 → 같은 감시 대상. 원인(스폰 정착 과도와의 관계)은 B7 에서
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
