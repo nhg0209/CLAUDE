@@ -1711,6 +1711,18 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
+**구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
+- ✅ B1 `get_actor_obs` (a9603c5) · B2 policy action 경로 — compose·governor·history push, `set_action_mode` (02a4f85) · B3a/B3b critic 473 (a33af40, d6270a5)
+  · B4a 상태 갱신을 `_post_step_update` 로 — Isaac Lab 이 dones 를 rewards 보다 먼저 부름 (3531d4f) · B4b 실패 종료 3가지 (4cb4181, b422580)
+  · B5 truncation 30 s·첫 에피소드 무작위·`extras["final_obs"]` (4c94b5f) + reset 속도 수정 (38fc0bb). 서버 map 장면 ④⑤⑨–⑫ 전부 PASS, ⑩⑪ 숫자 불변
+- **Isaac Lab v2.3.2 함정** — `write_root_velocity_to_sim`(= COM 버전)은 `root_com_vel_w` 만 쓰고 `root_link_vel_w`(timestamp lazy buffer)를 무효화하지 않는다.
+  같은 sim 시각 안(reset step ~ 다음 step 첫 `sim.step()`)에서 `root_link_lin_vel_b`·`root_link_ang_vel_b` 가 reset **전** 값을 준다 → reset 직후 obs vx 2.78·λ = −1,
+  history 26칸·센서 지연 버퍼 초기값·첫 substep `v_long` 이 전부 오염. 수정: `write_root_link_velocity_to_sim` (스폰 ω = 0 이라 PhysX 값 동일). pose·joint_vel·body_acc 는 각 write 가 직접 써서 정상
+- **남은 B (커밋 번호)**: B6 보상 → B7 출발 분포 → B8 d_ref 생성기 → B9 d_ref 연결
+- **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
+  E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
+- **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시
+
 **8차 구조 제안 — 센터 잠김 소프트웨어 결합 (2026-10-19, 위 결정으로 확정):**
 - 모델: 모터 토크는 지금처럼 네 바퀴에 똑같이 + **앞뒤 축 사이에 가상의 축(driveshaft)** — 앞축 평균 각 − 뒤축 평균 각(비틀림 Δθ)에 스프링 k,
   평균 각속도 차이 Δω 에 감쇠 c. 결합 토크 τ_c = k·Δθ + c·Δω 를 앞 두 바퀴에서 τ_c/2 씩 빼고 뒤 두 바퀴에 τ_c/2 씩 더한다
