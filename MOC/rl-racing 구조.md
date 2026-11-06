@@ -1767,6 +1767,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - ✅ **B7a `0b19132` 후진 허용** — `accel_to_wheel_torque` 에서 `block_reverse`·`v_long` 인자 삭제. 서버: ⑪(다) 역주행 종료 0.20 s(예측 0.22)·이동 0.047 m, ⑭(나) 0.20 s 종료,
   ④⑤⑨⑩⑫⑬ 숫자 불변. 다른 사용처: `eval/replay_controller.py`·`stack_controller.py` 가 replay 창 끝에 v_target = 0 → `vesc_speed_accel` = k_v(0 − v_wheel) 는
   v_wheel < 0 이면 부호가 바뀌어 0 근처로 되돌림(실차 VESC 속도 루프의 ERPM 0 유지와 같은 모양) — 이전엔 v ≤ 0 에서 자유 굴러감이었음. 조치 없음
+- ✅ **B7b `8b07577` 정착 0.12 s** — `settle_s` (reset 마다 cfg 에서 읽음), 정착 중 실제 명령 (0, 0)·history 에도 0, `extras["settling"]`. ⑩–⑬ 은 시험 안에서 정착 끔(회귀 숫자 유지).
+  서버 ⑮ PASS: step 1–6 전부 0, step 7 accel 2.853 (= 0.3·9.51)·δ 0.0652 (hist 0.1556 = δ/δ_max), 정착 끝 z −1.112 mm·v_com 7e-6·ω_y 5e-4.
+  첫 active step 끝 v_com 0.0597 ≈ 2.853 × 0.02 — 접지 과도 없이 출발. ⑭ (나)(다)(라) 의 0.1 s 표가 (가) 와 같아짐, (나) 역주행 종료 0.32 s = 0.12 + 0.20
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
