@@ -72,6 +72,10 @@ $\eta$ 는 차량 헤딩과 lookahead 점 방향의 사잇각. **스택과 같�
 eta = arcsin( (−sin ψ, cos ψ) · L1벡터 / |L1벡터| )       Controller.py:391
 ```
 
+> [!important] 2026-11-09 결정 (B9e) — PP 가 따라가는 경로는 **raceline + $d_{\text{ref}}$ (목표 경로)**
+> sim: waypoint $\mathbf{q}_i = \mathbf{p}_i + d_{\text{ref}}[i]\,\mathbf{n}_i$ 위에서 아래 Coulter 원 교점을 찾는다($d_{\text{ref}} \equiv 0$ 이면 raceline 그대로).
+> **실차 배포 요구사항: 우리 PP 는 planner 의 local waypoint 를 경로로 쓴다**(raceline 이 아니라). residual 은 그 위의 slip·동역학 보정만 — [[rl-racing 구조]] §8-6 「PP d_ref 결정」
+
 > [!warning] 2026-11-03 갱신 — 목표점은 **Coulter 원형**(반지름 $L_d$ 원과 레이싱 라인의 앞쪽 첫 교점, 없으면 경로를 따라 $L_d$ 앞 점 + 실제 거리 $\ell$), $\kappa_{PP} = 2y_g/\ell^2$ (H5). 아래 stack 정의(arcsin·L1벡터)는 비교군 ①의 것
 > 상수는 sim 튜닝값 — `rl_racing/common/base_policy.py` `4362bae`. stack 값 그대로(0.47·0.7)는 마지막 코너 탈출에서 일찍 핸들을 풀어 바깥 벽 충돌·스핀
 

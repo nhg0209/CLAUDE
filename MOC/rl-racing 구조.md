@@ -1813,6 +1813,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     (`pure_pp(..., d_ref)`, 목표점을 d_ref 만큼 옆으로)는 "§8-6 3단계에서 결정"으로 남았고 H5(Coulter 원형)는 d_ref 를 다루지 않았으며, B9 단계 목록에 PP 연결이 빠졌음.
     residual 만으로는 bump 를 못 만듦: $\Delta\kappa_{max} = 0.40 \ge 5.77A/h^2 \Rightarrow A \le 0.069h^2$ (L_b 4 m 면 A ≤ 0.28 m, 실제 맵 평균 0.48 m) → **1단계 결정 열림: PP 가 d_ref 를 어떻게 따를지**
   - 시험 기대 정정: preview 31점은 마지막 점이 약 18 m 앞이라 bump 3 m 앞에서도 이미 다른 이벤트까지 보임("처음 0" 기대가 틀림)
+  - ⑱ 시험 수정 `c22dc6f` PASS — reset 된 (step, env) 2 개를 빼니 보상 판정 전부 일치(env 0 은 step 120 에 과속 실패 → 원인 추정 확인)
+- **PP d_ref 결정 (사용자, 2026-11-09) = (가) Coulter 원을 목표 경로와 교차** (사용자 확인: "PP 가 raceline + d_ref 를 추종할 waypoint 로 보고 조향각 계산")
+  - waypoint $\mathbf{q}_i = \mathbf{p}_i + d_{ref}[e,i]\,\mathbf{n}_i$ (n = (−sinψ, cosψ), dref·spawn 과 같은 법선) 위에서 H5 와 같은 반지름 $L_d$ 원의 앞쪽 첫 교점, 없으면 목표 경로를 따라 $L_d$ 앞 점,
+    $\kappa_{PP} = 2y_g/\ell^2$. 관측 s·위치·방향, 테이블은 env 현재 값(교체 반영). $d_{ref} \equiv 0$ 이면 지금 PP 와 수치까지 같음(⑨⑩ 회귀) → actor obs 의 κ_PP 도 목표 경로 기준
+  - 기각: (나) 호 길이 목표점을 옆으로 — d_ref = 0 에서도 H5 와 달라짐 / (다) residual 범위 확대 — "residual = slip 보정" 원칙 깨짐
+  - 검토: 교체 직후 차–경로 거리(≤ 1.0 m)가 $L_d$ 최소(1.0 m) 이상이면 원 교점 없음 → 대체 규칙(분모 실제 거리 ℓ 라 곡률 연속), B9c 시험에서 확인. 문헌: ForzaETH stack(제어기가 local waypoint 추종) · RLPP(PP 가 주어진 경로 추종 + residual)
+  - 순서 변경: ⑱ 시험 수정 → **B9e PP 연결** → B9c 교체 갱신 → B9d 스폰
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
