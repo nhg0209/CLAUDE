@@ -1807,6 +1807,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **실제 맵 mapping_3 통계 (512 env, seed 0)**: bump 통과 90.3%·**평균 |A| 0.48 m (균일 0.80)**·평균 길이 4.01 (4.00)·**점유율 20.9% (bag 21% 와 일치)** /
     합류 통과 99.3%·평균 |J| 0.45 (0.55)·길이 2.71·점유율 15.9%. bump |A| 5구간 [0.1–0.38, …, 1.22–1.5] = 833·549·321·117·29 (균일이면 각 약 370) —
     **벽(트랙 폭)이 큰 bump 을 거부해 작은 진폭 쪽으로 강하게 치우침**, 1 m 넘는 bump 은 약 8%. 길이는 치우치지 않음(곡률 규칙은 긴 쪽, 겹침은 짧은 쪽이 유리해 상쇄로 추정)
+- **B9b `1085b24`** — obs(e_d·preview d_ref 31점, 관측 s)·측정값·보상(참값 s)에 연결, `dref_stage = −1` = 없음(⑨–⑯ 회귀용). ⑱(가) 0단계 전부 일치.
+  ⑱(나) 보상 판정 FAIL 은 시험 쪽(가속 0.3 고정 4 s → 약 11 m/s 로 코너에서 실패·reset 된 step 의 reset 전 보상 vs reset 뒤 측정값 — ⑪ 과 같은 함정) → 시험 수정
+  - **발견 (Claude 계획 누락)**: PP base 가 **raceline 을 따라가고 d_ref 를 모름** → PP 만으로 bump 안 |e_d| 최대 1.17 m. 「공유 인터페이스」 §2-1 의 2026-10-13 권고
+    (`pure_pp(..., d_ref)`, 목표점을 d_ref 만큼 옆으로)는 "§8-6 3단계에서 결정"으로 남았고 H5(Coulter 원형)는 d_ref 를 다루지 않았으며, B9 단계 목록에 PP 연결이 빠졌음.
+    residual 만으로는 bump 를 못 만듦: $\Delta\kappa_{max} = 0.40 \ge 5.77A/h^2 \Rightarrow A \le 0.069h^2$ (L_b 4 m 면 A ≤ 0.28 m, 실제 맵 평균 0.48 m) → **1단계 결정 열림: PP 가 d_ref 를 어떻게 따를지**
+  - 시험 기대 정정: preview 31점은 마지막 점이 약 18 m 앞이라 bump 3 m 앞에서도 이미 다른 이벤트까지 보임("처음 0" 기대가 틀림)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
