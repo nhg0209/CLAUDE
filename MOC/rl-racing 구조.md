@@ -1796,6 +1796,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **frenet window 전제 확인 (B8a `a1f12cb`)**: `project()` 는 idx ±12 칸(±1.2 m) **s 방향** 창. 횡 offset d 자체는 창과 무관(CLI 의 "1.2 < 1.5 m 라 깨질 수 있다"는 축 혼동).
     깨지는 조건은 12점의 s 방향 퍼짐 ρ(회전 포함 ≲ 0.55 m)이 커브 안쪽에서 $\rho/(1-\kappa d)$ 로 커질 때 → $\kappa d < 1 - \rho/1.2 \approx 0.54$ 필요.
     mapping_3: |κ| 최대 0.76, 안쪽 여유(벽 − 반폭)×κ 최대 0.235 → **전제 성립**. roboracer(κ 2.52)는 맵 바꿀 때 확인 — B8 벽 검사는 `at_edge` 면 실패로 처리해 다른 맵도 보호
+- ✅ **B8 d_ref 생성기 완료** (`dref.py`, 순수 함수, pytest 641): B8a `a1f12cb` `pose_margin` 모듈 함수 · B8b `f2e02b3` quintic·bump·합류 $(d, d', d'')$·최대 곡률 ·
+  B8c `cefead8` 이벤트 검사(곡률 ≤ 2κ_max·경로 추종 12점 여유, 방향 $\tan\Delta\psi = d'/(1-\kappa d)$·창 끝 실패, κ_max = `VEHICLE.kappa_max` 1.349) ·
+  B8d `52309b6` 랩당 4 칸 순서대로 뽑기·링 위 겹침·다시 뽑기·못 찾으면 비움 · B8e `a5a7340` 테이블(0단계 상수·랩 전체 검사, 1단계 bump 더하기로 씀, 2단계 위치 목록) ·
+  B8f `609e8b4` 교체 갱신(앞으로 지나면 idx0 에 쓰기·끝에서 지우기·매 바퀴, $0 < (s_t - s_{prev}) \bmod L \le (s_{now} - s_{prev}) \bmod L < L/2$).
+  합성 트랙 점유율 실측 bump 27%·합류 17% (미리 계산 28%·17%) — 실제 맵(벽 거부 포함)은 B9 에서
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
