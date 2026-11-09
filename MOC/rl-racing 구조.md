@@ -1820,6 +1820,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - 기각: (나) 호 길이 목표점을 옆으로 — d_ref = 0 에서도 H5 와 달라짐 / (다) residual 범위 확대 — "residual = slip 보정" 원칙 깨짐
   - 검토: 교체 직후 차–경로 거리(≤ 1.0 m)가 $L_d$ 최소(1.0 m) 이상이면 원 교점 없음 → 대체 규칙(분모 실제 거리 ℓ 라 곡률 연속), B9c 시험에서 확인. 문헌: ForzaETH stack(제어기가 local waypoint 추종) · RLPP(PP 가 주어진 경로 추종 + residual)
   - 순서 변경: ⑱ 시험 수정 → **B9e PP 연결** → B9c 교체 갱신 → B9d 스폰
+- ✅ **B9e `c7929a0`** — `forward_circle_intersection`·`pure_pp` 에 `lateral` (B,N), env 가 d_ref 테이블을 넘김. ⑨⑩ 숫자 그대로(d_ref 없음 = 수치 동일), pytest +5.
+  ⑱(다) 2 m/s 속도 유지: **(a) PP 목표점이 목표 경로 위 $|d(\mathbf{g}) - d_{ref}(s(\mathbf{g}))| < 10^{-3}$ 매 step 통과** · (b) bump A 0.127 m·L 5.15 m·peak κ 0.11 → bump 안 |e_d| 최대 3.5 cm·RMS 1.6 cm,
+  대체 목표점 0 회, lateral 유무 목표점 차이 최대 0.13 m (≈ A)
+  - **정정 (Claude)**: ⑱(나) 의 "PP 만으로 bump 안 |e_d| 1.17 m" 를 "PP 가 d_ref 를 모른다"의 증거로 썼으나 틀림 — 그 bump 은 높이 0.127 m 뿐이고,
+    1.1 m 는 가속 0.3 고정으로 4→7 m/s 까지 빨라져(raceline 코너 한계 $\sqrt{\mu g/\kappa} \approx 3.6$ m/s 초과) 미끄러지고 실패한 것. PP 가 d_ref 를 몰랐던 것 자체는 코드상 사실이고,
+    (가) 결정 근거(residual 범위 $A \le 0.069h^2$)는 이 숫자와 무관해 그대로
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
