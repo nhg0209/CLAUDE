@@ -1801,6 +1801,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   B8d `52309b6` 랩당 4 칸 순서대로 뽑기·링 위 겹침·다시 뽑기·못 찾으면 비움 · B8e `a5a7340` 테이블(0단계 상수·랩 전체 검사, 1단계 bump 더하기로 씀, 2단계 위치 목록) ·
   B8f `609e8b4` 교체 갱신(앞으로 지나면 idx0 에 쓰기·끝에서 지우기·매 바퀴, $0 < (s_t - s_{prev}) \bmod L \le (s_{now} - s_{prev}) \bmod L < L/2$).
   합성 트랙 점유율 실측 bump 27%·합류 17% (미리 계산 28%·17%) — 실제 맵(벽 거부 포함)은 B9 에서
+- ✅ **B9a `7527caf` + fix `c032f45`** — env 에 d_ref 테이블·종류·이벤트·활성, policy reset 때 `build_tables`(스폰 계산 앞), `dref_stage` cfg, `_dref_at` 주기 보간, `Dref/*` 로그.
+  **버그(⑰ 이 잡음)**: 못 찾은 slot(길이 0)의 bump_profile 이 u/h = 0/0 = NaN → `× valid`(NaN × 0 = NaN) 로 안 지워져 테이블 0번 칸 NaN(실제 맵 env 약 34%) → `torch.where` 로 수정,
+  좁은 트랙 재현 pytest·⑰ 유한 판정 추가. 합성 트랙(전부 valid)이라 B8e 시험이 못 잡았음
+  - **실제 맵 mapping_3 통계 (512 env, seed 0)**: bump 통과 90.3%·**평균 |A| 0.48 m (균일 0.80)**·평균 길이 4.01 (4.00)·**점유율 20.9% (bag 21% 와 일치)** /
+    합류 통과 99.3%·평균 |J| 0.45 (0.55)·길이 2.71·점유율 15.9%. bump |A| 5구간 [0.1–0.38, …, 1.22–1.5] = 833·549·321·117·29 (균일이면 각 약 370) —
+    **벽(트랙 폭)이 큰 bump 을 거부해 작은 진폭 쪽으로 강하게 치우침**, 1 m 넘는 bump 은 약 8%. 길이는 치우치지 않음(곡률 규칙은 긴 쪽, 겹침은 짧은 쪽이 유리해 상쇄로 추정)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
