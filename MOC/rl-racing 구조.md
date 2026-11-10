@@ -1842,6 +1842,22 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - B10b stack 제어기 local waypoint 의 **x, y 만** 목표 경로 $\mathbf{q}_i$ 로 옮김(사용자 (a)), 나머지 열은 raceline 값 — 제어기가 읽는 열을 CLI 가 먼저 보고
   - B10c 기록에 `dref_table` (env, step, N) + recorder 스키마 docstring · B10d console 3D 에 목표 경로 선 `dref` 토글(step 마다 갱신), `meas__d_ref`·e_d 그래프는 자동
   - 주의: console 은 2026-10-15 이후 실제 서버 기록으로 연 기록이 볼트에 없음 → B10d 에서 첫 실측 확인일 수 있음
+  - B10b 서버 결과: bump 93 step, 평균 |d_ref| 0.33 m·최대 0.74 m, stack 평균 |e_d| 0.285 m(평균 |d_ref| 의 86% — bump 를 거의 안 따라감, Controller.py 가 읽는 열 확인 대기)
+- **bump 진폭 분포 결정 (사용자, 2026-11-10) — 위 B 완료의 「미결」 해소** — 계기: B10b console 에서 "bump 진폭과 길이가 너무 작다"
+  - 사실 확인: 벽 여유는 **raceline–벽 거리** 기준(IQP raceline 의 `d_left`·`d_right`). raceline 이 센터라인에서 평균 0.38 m(최대 0.86) 치우쳐
+    한쪽 여유($d_{side} - w_{half} - 0.01$) 평균이 좁은 쪽 0.33 m·넓은 쪽 1.09 m(중앙값 비 약 4 배), 좁은 쪽 0.3 m 미만인 점 54%
+  - **합의안 (bump 만, 교체·0단계 그대로)**:
+    1. 마루 위치 $s_p$ 격자 균일, 방향 ± 반반
+    2. 그 쪽 여유 $\text{room} = d_{side}(s_p) - w_{half} - 0.01$, room < 0.3 이면 다시 뽑기. 진폭 $A = 0.3 + (\min(\text{room}, 1.5) - 0.3)\sqrt{u}$, $u \sim U(0,1)$ (위쪽에 무게, 사용자)
+    3. 길이 $\ell \sim U(\max(2, \ell_{curv}(A)),\ \min(6, \ell_{wall}(A)))$, 구간이 비면 다시 뽑기 —
+       $\ell_{curv} = 2\sqrt{10A/(2\sqrt3\,\kappa_{max})} \approx 2.93\sqrt{A}$, $\ell_{wall}$ = $A f_5(1 - |u|/(\ell/2)) \le \text{room}(s_p + u)\ \forall u$ 인 최대 길이(길이가 길수록 모든 u 에서 |d| 가 커져 단조, 0.1 m 후보)
+    4. 최종 판정은 기존 `check_events`(12점·heading·창 끝) + 겹침, 실패하면 위치부터 다시, MAX_TRIES 10 유지 · 길이 범위 [2, 6] 유지 · 진폭 상한 1.5 유지
+  - 검토 숫자(mapping_3 계산, heading 효과 뺌): **평균 |A| 0.71 m**(지금 실측 0.48)·A > 1 m 16%·한 번 뽑기 채택 약 60%(10 번 다 실패 ≈ $10^{-4}$)·평균 길이 약 3.9 m·
+    두 쪽 다 room < 0.3 인 위치 0% · 넓은 쪽 방향 약 72%(물리 한계, 받아들임) · **마루에서 차 옆면–벽 6 cm 이하 14%**(균일이면 10%) → 학습 때 실패 종류별 벽 비율 모니터링
+  - 비교한 안: 지금 방식 + 하한 0.3(평균 0.65·위치가 넓은 곳으로 몰림·채택 28%) / 하한 0.5(0.79·채택 21%·MAX_TRIES 30 필요) /
+    각 위치 가능 최대까지 균일(0.55) / 사용자 방식 + 진폭 균일(0.60). 마루 점 여유만 보고 길이를 따로 뽑으면 벽 침범 16–26%·곡률 위반 4–12% → 3 의 길이 구간으로 수정
+  - 영향: `test_sample_events_narrow_track_leaves_some_slots_invalid`(여유 0.2 m < 하한) 목적 변경 필요 · ⑰ 기대치(평균 |amp| 약 0.7, 구간 개수 위쪽으로)
+  - 구현: B11a `bump_length_bounds`(순수 함수) → B11b `sample_events` bump 분기·`BUMP_AMP` (0.3, 1.5) → B11c 시험 → B11d 서버 ⑰–⑳·stack console
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
