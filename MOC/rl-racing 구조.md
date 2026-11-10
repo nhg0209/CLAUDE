@@ -1893,6 +1893,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     4. 예상(모델): bump valid 약 0.92·|A| 약 0.64·A > 1 m 5%·길이 약 4.8·점유율 약 0.29 / merge valid 약 1.0·|J| 약 0.42 (지금 0.99·0.45). 넓은 쪽 방향 약 92% (정정: 지난 "72%" 는 heading 뺀 값, 지금도 88%)
     - bump 의 약 3/4 은 여전히 stack 속도(0.8×raceline)로 μg 초과 — 감속은 policy 몫(의도). stack 확인 주행 속도 낮출지: 미정
     - 구현: B12a 경로 곡률 순수 함수 → B12b `check_events` 경로 곡률 조건(끄기 가능) → B12c 상수·연결(0.15·0.8·30)·시험 조정 → B12d 서버
+    - ✅ **B12a `ee18f8e`** `path_curvature` (직선·동심원 닫힌 식 1e-6, 원 위 bump 세 점 곡률 < 1e-3 — 마루 한 칸만 예측된 어긋남:
+      $d'''$ 가 마루에서 $\pm 60A/h^3$ 로 뒤집혀 $d''$ 가 꺾임 → 2차 차분이 $c\Delta s/(3(1-\kappa d)^2)$ 어긋남, 실제/예측 0.990 두 경우) ·
+      **B12b `3cc1b4d`** `check_events(path_kappa_factor=None)` 4 번째 조건·`peak_path_curv` · **B12c `e535add`** `MAX_TRIES` 30·`DREF_MARGIN` 0.15·`PATH_KAPPA_FACTOR` 0.8
+      (`sample_events` 기본값만, `check_events`·`bump_length_bounds` 기본 0.01 그대로, kind 0 은 0.01). 시험: √u·room 상한 시험은 새 조건 끄고 원래 목적 유지 + 기본값 room 0.66 상한 확인,
+      넓은 트랙 "전부 valid" → valid ≥ 0.97(seed 운에 매이지 않게, 실측 254/256) · 넓은 트랙 점유율 0.363 (범위 [0.18, 0.38] 상한 가까움). pytest 672
+    - 정정 (Claude): "코너 바깥 bump 만 곡률이 더해진다"는 단순화 — bump 안에서 곡률 부호가 바뀌어 **코너 안 bump 는 방향과 무관하게 어딘가에서 더해짐**
+      (바깥쪽은 마루 근처, 안쪽은 시작·끝 근처. 원 R 6.68·A 0.6·L 3 에서 바깥 1.32 / 안쪽 1.53)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
