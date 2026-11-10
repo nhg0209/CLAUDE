@@ -1826,6 +1826,14 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **정정 (Claude)**: ⑱(나) 의 "PP 만으로 bump 안 |e_d| 1.17 m" 를 "PP 가 d_ref 를 모른다"의 증거로 썼으나 틀림 — 그 bump 은 높이 0.127 m 뿐이고,
     1.1 m 는 가속 0.3 고정으로 4→7 m/s 까지 빨라져(raceline 코너 한계 $\sqrt{\mu g/\kappa} \approx 3.6$ m/s 초과) 미끄러지고 실패한 것. PP 가 d_ref 를 몰랐던 것 자체는 코드상 사실이고,
     (가) 결정 근거(residual 범위 $A \le 0.069h^2$)는 이 숫자와 무관해 그대로
+- **B9c `c207d8d`** 교체 갱신 연결(`_post_step_update` 에서 참값 s 로 `update_merges`, 보상 전). ⑲ 큰 점프(J −0.915 m, L 2.14 m, 2 m/s): 점프 step 98 에 참값·관측 e_d 동시 점프,
+  0.68 s / 1.27 m 에 |e_d| < 0.1|J|, $|J|/L_d$ = 0.915 라 원 교점 있음(대체 0 회). ⑱(다) 큰 bump(A 0.751 m, L 5.95 m, peak κ 0.49): 2 m/s 에서 |e_d| 최대 5.0 cm·RMS 2.4 cm.
+  시험 수정 두 건 진행 중: (a) 목표점 재투영 허용 오차 → $|\lambda'||\lambda||\kappa|\Delta s/2$ (꼭짓점 법선과 선분 투영 차이, B7d 와 같은 기하) / ⑲ 합류 끝 = 칸 단위 $(\text{idx}_0 + \lceil L/\Delta s\rceil)\Delta s$
+- **B10 d_ref 주행 console 시각화 (사용자 동의, 2026-11-10)** — B 완료 뒤. 목적: d_ref 가 깔린 맵을 stack 제어기가 달리는 모습을 기존 브라우저 console(`rl_racing/console`, ssh -L 8765)로 확인
+  - B10a `drive.py --dref-stage {−1,0,1,2}`(기본 −1) · command 모드에서도 테이블 만들기·교체 갱신
+  - B10b stack 제어기 local waypoint 의 **x, y 만** 목표 경로 $\mathbf{q}_i$ 로 옮김(사용자 (a)), 나머지 열은 raceline 값 — 제어기가 읽는 열을 CLI 가 먼저 보고
+  - B10c 기록에 `dref_table` (env, step, N) + recorder 스키마 docstring · B10d console 3D 에 목표 경로 선 `dref` 토글(step 마다 갱신), `meas__d_ref`·e_d 그래프는 자동
+  - 주의: console 은 2026-10-15 이후 실제 서버 기록으로 연 기록이 볼트에 없음 → B10d 에서 첫 실측 확인일 수 있음
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
