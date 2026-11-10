@@ -1829,6 +1829,14 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **B9c `c207d8d`** 교체 갱신 연결(`_post_step_update` 에서 참값 s 로 `update_merges`, 보상 전). ⑲ 큰 점프(J −0.915 m, L 2.14 m, 2 m/s): 점프 step 98 에 참값·관측 e_d 동시 점프,
   0.68 s / 1.27 m 에 |e_d| < 0.1|J|, $|J|/L_d$ = 0.915 라 원 교점 있음(대체 0 회). ⑱(다) 큰 bump(A 0.751 m, L 5.95 m, peak κ 0.49): 2 m/s 에서 |e_d| 최대 5.0 cm·RMS 2.4 cm.
   시험 수정 두 건 진행 중: (a) 목표점 재투영 허용 오차 → $|\lambda'||\lambda||\kappa|\Delta s/2$ (꼭짓점 법선과 선분 투영 차이, B7d 와 같은 기하) / ⑲ 합류 끝 = 칸 단위 $(\text{idx}_0 + \lceil L/\Delta s\rceil)\Delta s$
+  - ✅ 시험 수정 `B9c-fix2` PASS: (a) 실제 1.57 mm / 예측 1.78 mm (λ 0.557·λ′ 0.432·κ 0.148) · ⑲ (가)(나)(다) 전부
+- ✅ **B9d 목표 경로 기준 스폰** — `sample_start_states(lateral=...)`: $\lambda$, $\lambda'$ (중앙 차분), $\Delta\psi_{ref} = \operatorname{atan2}(\lambda', 1-\kappa\lambda)$, pos = p + (λ + e_d)n, yaw = ψ + Δψ_ref + e_ψ,
+  대체 = 목표 경로 위. ⑳ (50 reset × 2): e_d·방향 모두 투영 기하 예측 안 — 방향 실제 최대 2.65 mrad / 예측 $\kappa^2|D|\Delta s/2$ = 2.66 mrad (κ 0.76, D 0.092),
+  bump 안 스폰 27/100(|λ| 최대 0.54 m, 경로 방향 최대 0.72 rad), 벽 여유·정착 중 실패 없음, 대체 0
+- ✅ **B (env) 단계 완료 (2026-11-10)** — actor obs 455·critic 473·policy action 경로·실패 종료 3가지·truncation 30 s·보상(Δs − w_d min(|e_d|,1) − 실패 벌점)·에피소드 로그·
+  정착 0.12 s·후진 허용·출발 분포·d_ref 생성기(0 상수/1 bump/2 교체)·PP 가 목표 경로 추종·교체 갱신·목표 경로 기준 스폰. check_env map 장면 ④⑤⑨–⑳.
+  Isaac Lab v2.3.2 함정 2 건(reset 의 link 속도 버퍼, step 안 reset 뒤 sim.forward 없음) 수정.
+  **미결**: bump 진폭 분포(실제 맵에서 평균 0.48 m 로 치우침 — 유지 / 가능 최대 진폭까지 균일) — 학습 전(C7 이전)에 결정
 - **B10 d_ref 주행 console 시각화 (사용자 동의, 2026-11-10)** — B 완료 뒤. 목적: d_ref 가 깔린 맵을 stack 제어기가 달리는 모습을 기존 브라우저 console(`rl_racing/console`, ssh -L 8765)로 확인
   - B10a `drive.py --dref-stage {−1,0,1,2}`(기본 −1) · command 모드에서도 테이블 만들기·교체 갱신
   - B10b stack 제어기 local waypoint 의 **x, y 만** 목표 경로 $\mathbf{q}_i$ 로 옮김(사용자 (a)), 나머지 열은 raceline 값 — 제어기가 읽는 열을 CLI 가 먼저 보고
