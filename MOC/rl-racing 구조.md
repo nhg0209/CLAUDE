@@ -1898,6 +1898,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       **B12b `3cc1b4d`** `check_events(path_kappa_factor=None)` 4 번째 조건·`peak_path_curv` · **B12c `e535add`** `MAX_TRIES` 30·`DREF_MARGIN` 0.15·`PATH_KAPPA_FACTOR` 0.8
       (`sample_events` 기본값만, `check_events`·`bump_length_bounds` 기본 0.01 그대로, kind 0 은 0.01). 시험: √u·room 상한 시험은 새 조건 끄고 원래 목적 유지 + 기본값 room 0.66 상한 확인,
       넓은 트랙 "전부 valid" → valid ≥ 0.97(seed 운에 매이지 않게, 실측 254/256) · 넓은 트랙 점유율 0.363 (범위 [0.18, 0.38] 상한 가까움). pytest 672
+    - ✅ **B12d 서버 check_env (e535add)** — ⑰ bump valid 0.919·|A| 0.627·길이 4.78·점유율 0.290·5 구간 742·754·282·98·7 /
+      merge valid 1.000·|J| 0.420 — **모델 예측(0.92·0.64·4.8·0.29 / 1.0·0.42)과 일치**. ⑨⑩ 그대로.
+      ⑱(다) 가장 큰 bump A −0.644·길이 4.37 m 를 2 m/s 로 |e_d| 최대 0.069 m·RMS 0.039 (지난번 κ_q > κ_max bump 는 0.16) · ⑲ J −0.537 PASS ·
+      ⑳ bump 안 스폰 28/100. **`--speed-scale` (`f91b4b8`)**: stack·pure_pp 전용, 0 이하·다른 제어기는 Kit 기동 전 거부, 안 주면 제어기 기본 0.8.
+      배율별 μg 초과 bump(모델): 0.3 4%·0.4 21%·0.5 30%·0.6 43%·0.8 71%
     - 정정 (Claude): "코너 바깥 bump 만 곡률이 더해진다"는 단순화 — bump 안에서 곡률 부호가 바뀌어 **코너 안 bump 는 방향과 무관하게 어딘가에서 더해짐**
       (바깥쪽은 마루 근처, 안쪽은 시작·끝 근처. 원 R 6.68·A 0.6·L 3 에서 바깥 1.32 / 안쪽 1.53)
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
