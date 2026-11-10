@@ -1842,6 +1842,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - B10b stack 제어기 local waypoint 의 **x, y 만** 목표 경로 $\mathbf{q}_i$ 로 옮김(사용자 (a)), 나머지 열은 raceline 값 — 제어기가 읽는 열을 CLI 가 먼저 보고
   - B10c 기록에 `dref_table` (env, step, N) + recorder 스키마 docstring · B10d console 3D 에 목표 경로 선 `dref` 토글(step 마다 갱신), `meas__d_ref`·e_d 그래프는 자동
   - 주의: console 은 2026-10-15 이후 실제 서버 기록으로 연 기록이 볼트에 없음 → B10d 에서 첫 실측 확인일 수 있음
+  - ✅ **B10d `8287e35` (2026-11-10, 사용자: env 마다·raceline 과 같은 색·한 프롬프트)** — `obs__d_ref_table` 을 일반 필드(값 표 422 칸·그래프 422 선)에서 빼고
+    `targetPathXYZ` 로 $\mathbf{q}_i = \mathbf{p}_i + d_{ref}[e,i]\mathbf{n}_i$ 실선(raceline 점선과 같은 색, z 0.005), env 마다 LineLoop, `dref` 토글(테이블 없으면 비활성),
+    행이 바뀐 step 목록 + 이진 탐색으로 그 step 에서만 다시 그림. 트랙 점 수 ≠ 테이블 칸 수·psi 없음이면 안내만.
+    Claude 확인(headless Chromium, 가짜 기록 3 개 — 원형 트랙 N 200): bump 선 좌표 식과 최대 2.4e-7 m 차이 · merge env 변경 step [0, 100, 200], step 50/150/250 에서
+    raceline/merge/raceline 로 정확히 바뀜 · N 불일치 안내 표시 · 테이블 없는 기록 토글 비활성 · 토글 동작 · JS 오류 없음. 서버 실제 기록으로 열기는 사용자
   - B10b 서버 결과: bump 93 step, 평균 |d_ref| 0.33 m·최대 0.74 m, stack 평균 |e_d| 0.285 m(평균 |d_ref| 의 86%).
     **사용자 console 확인 (2026-11-10): stack 이 bump 를 따라간다** → 열 문제 아님, Controller.py 열 보고(0번 보고) 보류.
     수치 차이는 지연(위상 늦음)·진폭 깎임(lookahead 가 짧은 bump 를 질러감) 가능성 — 미확인, stack 을 d_ref 경로 평가 비교군으로 쓸 때 다시 본다
