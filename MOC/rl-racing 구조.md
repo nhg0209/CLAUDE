@@ -1842,7 +1842,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - B10b stack 제어기 local waypoint 의 **x, y 만** 목표 경로 $\mathbf{q}_i$ 로 옮김(사용자 (a)), 나머지 열은 raceline 값 — 제어기가 읽는 열을 CLI 가 먼저 보고
   - B10c 기록에 `dref_table` (env, step, N) + recorder 스키마 docstring · B10d console 3D 에 목표 경로 선 `dref` 토글(step 마다 갱신), `meas__d_ref`·e_d 그래프는 자동
   - 주의: console 은 2026-10-15 이후 실제 서버 기록으로 연 기록이 볼트에 없음 → B10d 에서 첫 실측 확인일 수 있음
-  - B10b 서버 결과: bump 93 step, 평균 |d_ref| 0.33 m·최대 0.74 m, stack 평균 |e_d| 0.285 m(평균 |d_ref| 의 86% — bump 를 거의 안 따라감, Controller.py 가 읽는 열 확인 대기)
+  - B10b 서버 결과: bump 93 step, 평균 |d_ref| 0.33 m·최대 0.74 m, stack 평균 |e_d| 0.285 m(평균 |d_ref| 의 86%).
+    **사용자 console 확인 (2026-11-10): stack 이 bump 를 따라간다** → 열 문제 아님, Controller.py 열 보고(0번 보고) 보류.
+    수치 차이는 지연(위상 늦음)·진폭 깎임(lookahead 가 짧은 bump 를 질러감) 가능성 — 미확인, stack 을 d_ref 경로 평가 비교군으로 쓸 때 다시 본다
 - **bump 진폭 분포 결정 (사용자, 2026-11-10) — 위 B 완료의 「미결」 해소** — 계기: B10b console 에서 "bump 진폭과 길이가 너무 작다"
   - 사실 확인: 벽 여유는 **raceline–벽 거리** 기준(IQP raceline 의 `d_left`·`d_right`). raceline 이 센터라인에서 평균 0.38 m(최대 0.86) 치우쳐
     한쪽 여유($d_{side} - w_{half} - 0.01$) 평균이 좁은 쪽 0.33 m·넓은 쪽 1.09 m(중앙값 비 약 4 배), 좁은 쪽 0.3 m 미만인 점 54%
