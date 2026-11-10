@@ -1874,6 +1874,8 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     **⑱(다)(a) FAIL = 시험 버그**: `env._dref_at(proj["s"])` 에 (1,) 모양 s 를 넣어 `gather` 가 **env 0 행**을 읽음 — 고른 env 가 처음으로 1 이 되면서 드러남
     (실제 1.00629 ≈ env 1 bump 진폭 1.006, λ = 0 은 env 0 테이블, λ′ 0.0103 은 env 1 테이블 마루 근처). PP 자체는 정상: 2 m/s 에서 A 1.006·길이 3.64 m
     (peak 곡률 1.75 > κ_max 1.349, 정확 추종 불가 구간) bump 안 |e_d| 최대 0.16 m·RMS 0.09 m. 시험 수정 B11d-fix
+  - ✅ **B11d-fix `5a89b22`** — ⑱(다)(a) PASS: 실제 최대 0.00011 m / 예측 $|\lambda'||\lambda||\kappa|\Delta s/2$ = 0.00013 m (λ 0.778·λ′ 0.942·κ −0.0036).
+    **check_env map ④⑤⑨–⑳ 전부 PASS** (2026-11-10). 남은 것: stack 주행 console 로 bump 크기 눈 확인 · 출력 문구 두 곳(⑰ "균일 평균", ⑳ "점유율 ≈21%") 낡음
 - **B7 로 넘김**: v0 = 0 스폰 다음 step 의 obs vx = −0.067 m/s (가속 명령 +) — 스폰 높이 5 mm 낙하·타이어 정지 정착(이전 측정 125 ms, 27.5 Hz) 과도로 추정, 미확인.
   E3 "동역학 상태 0" 과 정착 시간을 둘지가 B7 의 결정 항목
 - **D 로 넘김**: 에피소드 통계는 reset 전(`_get_dones`/`_get_rewards`)에 기록 · CAPS temporal 쌍은 done transition 에서 mask · truncated bootstrap 은 `final_obs` · symlog mask 를 device 에 캐시 ·
