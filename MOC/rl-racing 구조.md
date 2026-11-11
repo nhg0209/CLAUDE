@@ -1708,6 +1708,18 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
 - **A 관측 규약 `common/`**: A1 스펙 선언·`spec_hash` → A2 preview 31점 배치·κ̂ 미리 계산 → A3 preview 생성(차량 좌표·보간) → A4 λ·symlog → A5 history 버퍼(26 샘플, 평균 + 극값, reset 채움) → A6 `build_actor_obs` (B, 455)
 - **B env**: B1 `get_actor_obs` → B2 `get_critic_obs` → B3 실패 종료 3가지 → B4 truncation 30 s·첫 에피소드 무작위 → B5 보상 → B6 출발 분포 → B7 d_ref 생성기 → B8 d_ref 연결
 - **C DR**: C1 샘플러(절단 Gaussian·균일·e→X·k) → C2 car.yaml `dr:` → C3 조향(offset 신규) → C4 센서 → C5 차량·타이어(m_eff) → C6 privileged 연결 → C7 커리큘럼 관리자(ADR 4축) → C8 에피소드 기록
+  - **C7 에 남겼던 결정 (사용자, 2026-11-11)** — 문헌: OpenAI ADR(Akkaya 2019) · legged_gym 지형 커리큘럼(Rudin 2022) · Teacher-Student CL(Matiisen 2017, 성능 떨어지는 과제 재연습)
+    - 경로 단계 섞기 = **(B) 새 단계 고정 비율 p** — p 는 사용자 미지정이라 Claude 가 **0.5** 로 넣음(새 단계 1/2, 나머지 열린 단계에 균등: 단계 1 열림 → 0·1 각 0.5, 단계 2 열림 → 2: 0.5, 0·1: 0.25)
+    - 다음 축 = **(ㄱ) 차례로** μ 아래 → μ 위 → 경로 → k → …, 끝값에 닿은 축은 건너뜀(→ 다시 좁혀지지 않는다)
+    - 성공 비율 = **(ⅰ) 구간 비율** — **3단계 정정(Claude)**: "직전 1500 step 에 끝난 에피소드"는 편향 — 성공(30 s 완주)은 1500 step 전에 시작한 것이라
+      축이 바뀌는 차례 방식에서 성공은 앞 축, 실패는 지금 축에 섞인다. → **reset 때 태그**(축·경계값)를 붙이고, 1500 step 동안 시작한 태그 에피소드가 **모두 끝난 뒤**
+      그 비율로 판정(판정은 한 구간 늦음, 다음 축 태그는 바로 시작). 태그 경계값 ≠ 지금 경계값이면 버림. 표본 50 미만이면 판정 안 함(Claude 추가)
+    - 성공 = time_out 으로 끝남(실패 없음), 첫 에피소드(무작위 길이)는 태그 안 함. 측정 env = id % 20 == 0(5%), 그 축의 경계값에 고정(μ 아래·위·최신 경로 단계).
+      k 차례에는 고정 없이 전체 env 를 태그. > 0.6 한 칸 넓힘 · < 0.2 한 칸 좁힘
+  - **구현 해석 (Claude, 프롬프트에 넣음 — 다르면 사용자가 바꿈)**: C′·y₂·wheel gain 은 D2 규칙(절단 Gaussian, σ = 넓은 쪽 반폭/2) · σ_a = k·U(1.1, 2.8) ·
+    `dr_enable` 기본 False(학습 스크립트가 켬 — check_env·drive 회귀 그대로) · DR 중심값이 cfg 와 다른 셋(deadband 0 → 0.75°, armature 1e-3 → 7.5e-4, imu 지연 5 → 15 ms)은
+    DR 켤 때만 중심값 사용 · offset 은 서보·deadband 뒤 바퀴 각에 더함(링크 정렬 오차) · e→X 역함수 $y = \frac{(2-e) - \sqrt{e(4-e)/3}}{2 - 2e/3}$, $X = 1/y$
+  - 사용자: C 는 프롬프트 하나로(새 CLI 세션에 넘겨도 되게) — 커밋은 C1–C9 단계별로 나눠 pytest 마다 확인
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
