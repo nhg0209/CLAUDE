@@ -1741,6 +1741,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     학습(4096 env)은 거의 매 step reset 이 있어 ADR 상태가 거의 기록 안 됨 → reset 뒤에도 다시 써야 함.
     (라) 실행 중 dr_enable 을 끄고 reset 해도 DR 로 뽑은 값이 남음 → DR 을 한 번이라도 적용한 뒤 끄면 reset env 를 생성 때 값으로 되돌림(한 번도 안 켰으면 지금과 비트 동일)
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
+  - **구현 틀 = (A) skrl 하위 클래스 (사용자, 2026-11-11)** — 9-29 결정 2(직접 CleanRL 단일 파일)와 11-05 S 설계(skrl 전제)가 어긋나 있던 것을 정리. 볼트 「프로젝트 스택」 #26·10-2 의 "CleanRL fork" 는 낡은 기록
+  - **확인 (Claude)**: 컨테이너 lock(`docker/requirements-lock.txt`)은 **skrl 2.1.0** — S 설계 때 읽은 코드는 1.4.3. 2.1.0 은 observations(policy)·states(critic) 를 따로 받고(Isaac Lab wrapper 가 "critic" 을 states 로),
+    target 이 terminated 로만 bootstrap 을 끊는다 → 수정 ①(비대칭)은 기본 지원, ②(truncation)는 반만(다음 obs 를 `final_obs` 로 바꾸는 것만 남음).
+    skrl 1.4.3·2.1.0 둘 다 GaussianMixin 에 **tanh squashing 이 없다**(clip + 보정 없는 log π) → policy model 이 squashing·log π 보정을 직접 한다
+  - 같이 발견: `extras["dr_episodes"]` 가 매 step 지워지지 않음(학습 로그 중복), ADR/* 를 `_post_step_update` 에서 쓰면 바로 뒤 `_get_dones` 의 log pop 에 지워짐(G1 은 reset step 만 고침) → D0
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
