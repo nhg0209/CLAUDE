@@ -1730,6 +1730,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
        절단(역CDF)으로 고치고 71.5/14.2/14.2 로 되돌림
     3. **DR 센서 지연이 한 물리 step(5 ms) 길다** — 원래 규약은 지연 n·dt ↔ DelayLine offset n−1(n=0 은 live), DR 경로는 offset = n. pose 0 ms 표본도 5 ms 로 읽힘.
        privileged(= n·dt)와 실제가 어긋남. check_env ㉑ 도 같은 식으로 비교해 못 잡음
+  - ✅ 수정 F1 `59f3906`(구간 closed 뒤 판정) · F2 `c4da34a`(역CDF 절단, float64 erf·ndtri) · F3 `0e18c26`(`sensor_read_offset_batch` offset n−1·live 섞기 `blend_live`)
+  - **서버 check_env (0e18c26, 2026-11-11)**: ④–⑳ 전부 PASS, 회귀 숫자 그대로(⑨ −0.0022 · ⑩ 5.6743/0.0032 · privileged 전부 cfg 값 — DR 끈 경로 불변).
+    **㉑ DR 예외**: `set_delay_steps` "0~0 범위, [2, 2]" — 센서 버퍼 용량을 **생성 때의 dr_enable** 로 정함(False 면 cfg 지연 기준, imu 5 ms → offset 0).
+    check_env 는 한 env 로 실행 중 dr_enable 을 켜서, DR imu 중심 15 ms(offset 2)가 들어갈 자리가 없음. CLI 가 "사소함"으로 미룬 그 항목이 원인.
+    수정: dr_enable 과 무관하게 용량 = max(cfg 지연, DR 상한) — 읽는 offset 은 그대로라 DR 끈 경로 비트 동일
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
