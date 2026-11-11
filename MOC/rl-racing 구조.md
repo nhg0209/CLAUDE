@@ -1720,6 +1720,16 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     `dr_enable` 기본 False(학습 스크립트가 켬 — check_env·drive 회귀 그대로) · DR 중심값이 cfg 와 다른 셋(deadband 0 → 0.75°, armature 1e-3 → 7.5e-4, imu 지연 5 → 15 ms)은
     DR 켤 때만 중심값 사용 · offset 은 서보·deadband 뒤 바퀴 각에 더함(링크 정렬 오차) · e→X 역함수 $y = \frac{(2-e) - \sqrt{e(4-e)/3}}{2 - 2e/3}$, $X = 1/y$
   - 사용자: C 는 프롬프트 하나로(새 CLI 세션에 넘겨도 되게) — 커밋은 C1–C9 단계별로 나눠 pytest 마다 확인
+  - **C1–C9 구현 (CLI, 2026-11-11)**: C1 `7199a51` dr.py · C2 `16f0948` car.yaml randomization 16 키 · C3 `a10fd4f` 조향 · C4 `c4e584d` 센서 · C5 `f15b26d` 타이어·armature ·
+    C6 `760c499` · C7 `fd751de` curriculum.py · C8 `4fb8da8` 기록 · C9 `26bca24` check_env ㉑ · 리뷰 반영 `7d8e559`. pytest 765
+  - **Claude 검토 — 버그 3 (고칠 것)**:
+    1. **ADR 판정이 구간이 끝나기 전에 일어남** — `report_episode_ends` 가 "끝난 수 ≥ 태그 수"면 바로 판정. 구간 초반 측정 env 하나가 태그되고 금방 실패하면 1/1 로 판정
+       → 표본 < 50 이라 버리고 그 구간은 판정 끝 처리 → 실제 학습에서 거의 모든 구간이 이렇게 죽어 **ADR 이 한 칸도 안 움직일 수 있음**. 시험(`_judge`)은 태그를 한꺼번에 넣고 한꺼번에 끝내서 못 잡음.
+       수정: 구간이 닫힌 뒤(태그 끝)에만, 그리고 그 구간 태그가 전부 끝났을 때 판정
+    2. **절단 Gaussian 이 clamp** — 양 끝에 점질량(예: gain 상한 1.06 쪽은 1.33σ 라 약 9% 가 정확히 1.06). D3 의 지연 격자 72/14/14% 를 CLI 가 68/16/16 으로 "유도"해 기대값을 바꿈 —
+       절단(역CDF)으로 고치고 71.5/14.2/14.2 로 되돌림
+    3. **DR 센서 지연이 한 물리 step(5 ms) 길다** — 원래 규약은 지연 n·dt ↔ DelayLine offset n−1(n=0 은 live), DR 경로는 offset = n. pose 0 ms 표본도 5 ms 로 읽힘.
+       privileged(= n·dt)와 실제가 어긋남. check_env ㉑ 도 같은 식으로 비교해 못 잡음
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
