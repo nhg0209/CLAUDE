@@ -1735,6 +1735,11 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     **㉑ DR 예외**: `set_delay_steps` "0~0 범위, [2, 2]" — 센서 버퍼 용량을 **생성 때의 dr_enable** 로 정함(False 면 cfg 지연 기준, imu 5 ms → offset 0).
     check_env 는 한 env 로 실행 중 dr_enable 을 켜서, DR imu 중심 15 ms(offset 2)가 들어갈 자리가 없음. CLI 가 "사소함"으로 미룬 그 항목이 원인.
     수정: dr_enable 과 무관하게 용량 = max(cfg 지연, DR 상한) — 읽는 offset 은 그대로라 DR 끈 경로 비트 동일
+  - ✅ C-fix2 `1e95a2b` → ㉑ 실행됨: (가) 적용값 == privileged 전부 PASS · (나) k=0 center PASS ·
+    (다) noise 표준편차 vx 0.053/0.049 (σ_v 0.05) · ax 2.55/1.24 (σ_a 2.53/1.23) PASS. **(라)(마) FAIL**:
+    (마) **실제 버그** — ADR/* 를 `_post_step_update` 에서 extras["log"] 에 넣지만, 같은 step 의 `_reset_idx` 가 `extras["log"] = episode_log(...)` 로 **새 dict 로 바꿔** 지운다.
+    학습(4096 env)은 거의 매 step reset 이 있어 ADR 상태가 거의 기록 안 됨 → reset 뒤에도 다시 써야 함.
+    (라) 실행 중 dr_enable 을 끄고 reset 해도 DR 로 뽑은 값이 남음 → DR 을 한 번이라도 적용한 뒤 끄면 reset env 를 생성 때 값으로 되돌림(한 번도 안 켰으면 지금과 비트 동일)
 - **D SAC**: D1 model·초기화 → D2 수정 ②③ → D3 ⑤ → D4 ④ CAPS → D5 ⑥·burn-in → D6 `scripts/train.py` → D7 첫 측정(시간·메모리 → G)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
