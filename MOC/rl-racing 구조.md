@@ -1746,6 +1746,21 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     target 이 terminated 로만 bootstrap 을 끊는다 → 수정 ①(비대칭)은 기본 지원, ②(truncation)는 반만(다음 obs 를 `final_obs` 로 바꾸는 것만 남음).
     skrl 1.4.3·2.1.0 둘 다 GaussianMixin 에 **tanh squashing 이 없다**(clip + 보정 없는 log π) → policy model 이 squashing·log π 보정을 직접 한다
   - 같이 발견: `extras["dr_episodes"]` 가 매 step 지워지지 않음(학습 로그 중복), ADR/* 를 `_post_step_update` 에서 쓰면 바로 뒤 `_get_dones` 의 log pop 에 지워짐(G1 은 reset step 만 고침) → D0
+  - ✅ **D0–D6 커밋**: D0 `38a1c45` · D1 순수 수식 `6c6baa6` · D2 AsymPolicy·AsymQNetwork `5feb4d8` · D3 symlog scaler `02b8953` · D4 memory valid·done·차원별 α·final_obs `49e3a0d` · D5 update(burn-in·actor 간격·CAPS·clip) `64a4298` · D6 `train.py` `3ee2741`
+  - **D7 첫 측정 (서버, 2026-11-12)** — 고친 것 4가지:
+    - **D-fix** `b063088`: 전처리기 kwargs 에 `size` 없음(테스트는 Identity 로 바꿔 끼워 못 잡음) → TypeError. 같이: `learning_rate` 미전달(셋 다 1e-3 → 3e-4/3e-4/1e-3), CAPS noise 를 CPU·seed 없는 generator 로 만들던 것 → device·`--seed`, traceback 출력
+    - **D-mem** `d905fbe`: 4096 env 첫 reset 에서 OOM(GPU 슬라이스 25G). (1) d_ref kind 0 검사가 4096 env × 격자 약 423 × 12점 × window 25 를 한 번에 투영 → `pose_margin` 을 32768 자세씩 나눔(결과 bit 동일).
+      (2) critic state 473 = actor obs 455(같은 noise) + privileged 18 인데 buffer 가 두 번 저장 → privileged 만 저장하고 sampling 때 이어 붙임. transition 당 float 1859 → 949, buffer **13.84 → 7.07 GiB**.
+      측정: PyTorch 밖 3.6 GiB · reserved 최대 7.92 · **최대 전체 11.53 GiB**(슬라이스 20G = 19.4 GiB 안)
+    - **D-prof** `8e4d0bb`·`90c150d`·`e57513a`: `SectionTimer` + `scripts/tools/profile_env.py`(구간별 ms, `--num-envs`). 결과: env step 834 ms 의 87% 가 `_reset_idx`, reset 1회 비용이 reset 대수가 아니라 **전체 env 수에 비례**(1024: 181 ms, 4096: 698 ms).
+      가설 판정 — GPU 연산 상한 없음(메모리 한도만), env 겹침 broadphase 아님(physics 4배 env 에 2.5배), `_apply_mu`(PhysX 재질 CPU API) 아님(3.6 ms)
+    - **D-speed1** `fb4d3db`: 범인 `_apply_dr` → `coupling.set_params()` 가 reset 마다 **전 env** 안정성 검사(4096×100 개 2×2·4×4 `eigvals` + env 별 GPU 동기화 Python 루프). 검사 행렬은 spring_frac·damper_frac 만 쓰고 DR 은 j_wheel 만 바꾸므로 → `set_j_wheel()`(k·c 만 재계산, bit 동일). `rest.dr` 737 → 1.8 ms, ㉑ PASS
+    - 결과: train.py(4096 env, G 4) **env step 122.6 ms · update 100.4 ms · 4.42 step/s**(600 step 9분 12초 → 2분 15초). 남은 env 큰 덩어리: `apply_action` 48.5 ms(substep 4회) · physics 47.2 ms
+  - **G = 8 (사용자, 2026-11-12)** — 사용자 근거: "2차원 action 이라 update 늘리는 게 효과 클 것 같아서". ρ = G·B/N_env = **32**(transition 하나를 평균 32번 사용). N_env 4096 · batch 16384 · buffer 2×10⁶ 그대로.
+    actor·α·CAPS 는 critic 2번에 1번 그대로 → env step 당 4번. burn-in 250 env step 그대로 → critic 2000 gradient step.
+    예상 학습 한 step 약 320 ms 이상(3.1 step/s 이하), burn-in 뒤 update 시간 다시 잰다. **되돌림 기준**: Q overestimation 증가, 또는 critic loss 하락 중 return 정체·붕괴 → G = 4.
+    문헌: FastTD3(num_updates 먼저 키우기, 저차원 action 에서 효과) · Raffin 2025(Isaac Lab SAC, 데이터가 싸서 replay ratio 를 고전 SAC 보다 낮게 ≈ 0.03/1024 env) · FastSAC(update 수 ablation, 수치 미확인).
+    3단계 검토에서 짚은 가정: 학습이 update 에 막혀 있다는 근거는 아직 없음(G 4 vs 8 같은 시간 비교가 대안)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
