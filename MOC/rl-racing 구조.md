@@ -1775,6 +1775,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **기록 추가**: 정규화된 κ 입력의 최대·clip 비율(새 맵에서 실패 원인 가르기)
   - **필요 코드**: command 모드 DR · command 모드 센서 지연·noise(입력·기록 분리) · "차량 중심값 + noise" 평가 설정(지금은 k 하나가 폭·noise 를 같이 정함) · 평가 중 ADR k = 1 고정 · StackDriver 차 1대 시간 측정
   - 문헌: Agarwal 2021(구간 추정) · RLPP(Ghignone 2025, PP residual·마찰 DR) · Hildisch 2025(실차 여러 마찰) · arXiv 2504.15414(분포 위 최악 성능이 실차를 더 잘 예측). 사용자 근거는 따로 적지 않음
+- **평가 설계 2차 V5·V6 (2026-11-16, 사용자 동의)**
+  - **V5-1 랩타임 = 3랩 합**, RMS e_d 도 3랩 전체. 랩별 시간은 기록만(출발 가속 vs 코너 원인 가르기용 — Claude 보완)
+  - **V5-2 DNF**: 랩타임·e_d·Sm 은 완주 run 만 평균, 모든 점에 완주율·완주 run 수·구간 표기. **비교군 차이는 둘 다 완주한 짝(같은 noise seed·차량)에서만**(Claude 보완 — 완주 집합이 다르면 짝지은 비교가 깨짐)
+  - **V5-3 매끄러움 = CAPS Sm, 시간 영역**(논문 그대로) — $\delta_{\text{cmd}}$, $a_{\text{cmd}}$, ③ residual. 식 $Sm = \frac{2}{n f_s}\sum M_i f_i$ 는 기억 — 구현 전 원문·공개 코드(ai.bu.edu/caps) 확인.
+    한계로 기록: 빠른 제어기는 트랙 곡률 성분의 주파수가 속도 비례로 올라 Sm 이 약 c 배 나빠짐(거리 영역은 쓰지 않기로)
+  - **V5-4 slip = 바퀴별 peak 초과 시간 비율** $\frac{1}{T}\int \mathbb{1}[|\lambda| > x_1]dt$, 각 차의 $x_1 = 3/C'$, **타이어 모델이 힘 계산에 쓰는 slip 변수**(정지 출발 근처 λ 발산 회피). 최대 slip ratio 는 기존대로 기록
+  - **V6 평가 action = 평균** $\tanh(\mu(s))$ — 학습 곡선(샘플 action)과 구분 표시. 문헌: SAC(Haarnoja 2018, 평균 평가) · CAPS(Mysore 2021) · SPL(Anderson 2018, (나) 후보였음) · slip KPI(Politecnico di Torino 학위논문)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
