@@ -1807,6 +1807,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     F = 조건 1·2 완주율, T 3랩 시간 · E RMS e_d · S 조향 Sm 은 **기준점과 둘 다 완주한 짝에서만**. 기준점 seed 102 vs 101 의 J 를 J_noise 로, **J > 2|J_noise| 일 때만 기준점에서 바꿈**. 한 계수의 두 값이 모두 넘으면 J 큰 쪽. 바뀐 계수 둘 이상이면 조합 확인 학습
   - **S3-3 곡선 w_d = log 간격**: [0.1, 0.9 × 자살 유인 상한(c)] 4점, 0.3 포함 — 상한은 sweep 으로 정해진 c 로 다시 계산(c 0.4 면 1.19–1.91, 벌점 0 이면 0.7). 문헌: Das & Dennis 1997(가중합은 같은 간격 가중치가 고른 점을 안 줌·오목 구간 못 찾음)
   - **S4 sweep 학습 길이 = 본 학습과 같음**(ADR + 20,000, 상한 150,000) — short-horizon bias(Wu 2018) 회피. 8–9회 ≈ 80–90 h
+- **sweep 구현·성능 (2026-11-16)**: W-1 `321aa58`(--term-c·--term-c0) · W-2 `f1c2a50` run_sweep.py(이어서 하기) · W-3 `c4dc75c` 점수 J · W-4 `9bd7b3b` apply_action 세분화 + profile_env --eval-mode
+  - **진단 정정(Claude)**: "평가 모드만 차당 16배 느림" 은 평가 151대를 학습 4096대와 비교한 잘못 — 같은 151대에서 학습·평가 설정 둘 다 `tire_force` 가 env step 의 67–69%(약 70 ms)
+  - **P1 `bfc0134`**: `tire.friction_vs_slip()` 이 매 호출 x1(=3/C')·y2 를 `bool(torch.any(...))` 로 검사 → env step 당 GPU→CPU 동기화 24회. 값이 바뀔 때(`_apply_priv_values_to_subsystems`·생성)만 검사, substep 은 `validate=False`(bit 동일).
+    결과: 151대 env step 105.9 → 35.2 ms, tire_force 70.8 → 3.1 ms. 4096대 apply_action 48.5 → 27.5 ms, env step 약 94 ms(physics 43.5 ms 가 최대). check_env ④–㉒ 전부 PASS·숫자 불변.
+    학습 한 step 약 331 → 322 ms(3%, 18% 라던 Claude 예측은 4096대에서 physics 비중을 빼먹은 과대). 평가(차 수 적음)는 크게 빨라짐
+  - ⚠ **사고**: sweep 첫 학습 중 check_env 를 띄워 20G 한도 초과 → 학습 쪽도 `Failed to allocate` 로 깨짐. 실행기를 안 끄고 학습만 죽여 다음 설정이 자동 시작되기도 함.
+    **규칙: sweep·학습 중에는 GPU 쓰는 명령 금지, 멈출 때는 run_sweep.py 먼저 → train.py**. w1 을 지우고 P1 코드로 재시작
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
