@@ -1769,11 +1769,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     PP lookahead 는 새 맵에서 다시 맞춤(사용자) — **② 만인지 ③'·③ base 까지인지는 그때 결정**(③'·③ 은 mapping_3 lookahead 위에서 학습 → base 를 바꾸면 성능 변화가 "새 트랙" 과 "base 변경" 으로 섞임)
   - **V3 명목 차량 noise 0 1회 + 명목 차량 noise 중심값 N 50 + 무작위 차량(k = 1) M 100, 네 비교군 모두**. 같은 차량 목록·noise seed 로 짝지은 비교(common random numbers).
     정밀도: 완주율 95% 구간 최대 ±0.14, 하위 10% = 100대 중 10번째. ①② 평가가 비교군당 2시간을 넘으면 ①② 의 M 을 같은 목록 앞 50대로
-  - **①② 센서 = ③ 과 같은 지연·noise** — 지금 ①② 는 `get_measurements()` 참값(지연·noise 0)을 받음(DR·noise 가 policy 모드에만: `dr_active = dr_enable and action_mode == "policy"`).
-    **제어기 입력(지연·noise)과 기록·지표(참값)를 분리**해야 함
+  - **①② 센서 = ③ 과 같은 지연·noise** — ⚠ 정정(Claude, 11-16, 구현 프롬프트 쓰며 코드 확인): ①② 가 참값을 받는다는 1단계 설명은 틀림.
+    runner 가 제어기에 `env.get_observations()`(S4, `_obs_sensor_cache` — 명목 센서 지연 반영)를 넘기고, 판정·기록은 `get_measurements()` 참값 → **입력·기록 분리는 이미 돼 있음**.
+    ①② 에 없는 것은 **obs noise 와 DR(지연 DR 포함)** — 둘 다 policy 모드에서만 켜짐(`dr_active = dr_enable and action_mode == "policy"`, `_apply_obs_noise` 같은 조건)
   - **V4 첫 실패 = DNF**(학습 종료 조건 3가지 + 시간 초과) — 프레임워크 결정 6(접촉 세고 계속)은 평가에서 폐기. 출발 정착을 command 모드에도 같게(미뤄 둔 항목). 학습 30 s vs 평가 3랩 약 54 s 는 시간이 obs 에 없어 문제없음
   - **기록 추가**: 정규화된 κ 입력의 최대·clip 비율(새 맵에서 실패 원인 가르기)
-  - **필요 코드**: command 모드 DR · command 모드 센서 지연·noise(입력·기록 분리) · "차량 중심값 + noise" 평가 설정(지금은 k 하나가 폭·noise 를 같이 정함) · 평가 중 ADR k = 1 고정 · StackDriver 차 1대 시간 측정
+  - **필요 코드**: command 모드 DR · command 모드 obs noise · "차량 중심값 + noise" 평가 설정(지금은 k 하나가 폭·noise 를 같이 정함) · 평가 중 ADR 대신 명시 배정 · StackDriver 차 1대 시간 측정
   - 문헌: Agarwal 2021(구간 추정) · RLPP(Ghignone 2025, PP residual·마찰 DR) · Hildisch 2025(실차 여러 마찰) · arXiv 2504.15414(분포 위 최악 성능이 실차를 더 잘 예측). 사용자 근거는 따로 적지 않음
 - **평가 설계 2차 V5·V6 (2026-11-16, 사용자 동의)**
   - **V5-1 랩타임 = 3랩 합**, RMS e_d 도 3랩 전체. 랩별 시간은 기록만(출발 가속 vs 코너 원인 가르기용 — Claude 보완)
@@ -1782,6 +1783,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     한계로 기록: 빠른 제어기는 트랙 곡률 성분의 주파수가 속도 비례로 올라 Sm 이 약 c 배 나빠짐(거리 영역은 쓰지 않기로)
   - **V5-4 slip = 바퀴별 peak 초과 시간 비율** $\frac{1}{T}\int \mathbb{1}[|\lambda| > x_1]dt$, 각 차의 $x_1 = 3/C'$, **타이어 모델이 힘 계산에 쓰는 slip 변수**(정지 출발 근처 λ 발산 회피). 최대 slip ratio 는 기존대로 기록
   - **V6 평가 action = 평균** $\tanh(\mu(s))$ — 학습 곡선(샘플 action)과 구분 표시. 문헌: SAC(Haarnoja 2018, 평균 평가) · CAPS(Mysore 2021) · SPL(Anderson 2018, (나) 후보였음) · slip KPI(Politecnico di Torino 학위논문)
+- **평가 설계 3차 V7·V8 (2026-11-16, 사용자 동의)**
+  - **V7 ③' = 마스킹 (가)** (사용자: 처음 1차원 (나) → 코드 수정 범위를 보고 (가)로): ③ 과 같은 2차원 policy, env 플래그로 조향 residual 을 0 으로 바꾼 **뒤** compose(평가도 같은 플래그, history 조향 칸 = PP 명령).
+    학습 설정 전부 ③ 과 같음(CAPS 조향 1.5 / 가속 0.75 포함). **w_d = 0.3 한 점만**. 예상 동작: σ_steer↑ (log σ 상한 2) · α_steer↓ — 고장 아님.
+    한계: 공유층에 reward 와 무관한 조향 쪽 gradient(CAPS·entropy), critic 의 무관한 action 입력. 문헌: 조향/속도를 나눈 ablation 은 못 찾음(Elgouhary 2026 = PP 조향 쪽만 PPO 학습)
+  - **V8 학습 종료 = ADR 최종 범위(μ [0.3, 1.1]·경로 단계 2·k 1) 도달 후 20,000 env step 더, 마지막 checkpoint. 상한 150,000 env step**(도달 실패도 결과). 20,000 은 첫 학습 곡선으로 조정
+  - **V8 seed = 주 비교점 w_d 0.3(미리 정함 — 결과 보고 고르면 편향)에서 ③·③' 각 3, 나머지 곡선 w_d 3점은 ③ seed 1** → 9회 ≈ 90 h(1회 10 h 가정, GPU 예산 미확인). 여유 생기면 곡선 seed 3 → ③' 곡선 순.
+    문헌: Colas 2018(seed 수 = 오판 확률) · Agarwal 2021 · arXiv 2504.15414. N·M·V8 값은 사용자 위임 → Claude 가 기준과 함께 제시, 사용자 동의
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
