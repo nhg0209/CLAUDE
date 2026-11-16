@@ -1790,6 +1790,17 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
   - **V8 학습 종료 = ADR 최종 범위(μ [0.3, 1.1]·경로 단계 2·k 1) 도달 후 20,000 env step 더, 마지막 checkpoint. 상한 150,000 env step**(도달 실패도 결과). 20,000 은 첫 학습 곡선으로 조정
   - **V8 seed = 주 비교점 w_d 0.3(미리 정함 — 결과 보고 고르면 편향)에서 ③·③' 각 3, 나머지 곡선 w_d 3점은 ③ seed 1** → 9회 ≈ 90 h(1회 10 h 가정, GPU 예산 미확인). 여유 생기면 곡선 seed 3 → ③' 곡선 순.
     문헌: Colas 2018(seed 수 = 오판 확률) · Agarwal 2021 · arXiv 2504.15414. N·M·V8 값은 사용자 위임 → Claude 가 기준과 함께 제시, 사용자 동의
+- **V 구현 (2026-11-16, CLI)**: V-a `38bbc62` · V-b `d0a2218` + fix `c4ca1ba`(명목 = RANDOMIZATION_PARAMS center — `_revert_dr()` 생성 값은 deadband 1.0°·imu 5 ms·armature 1e-3·e 0.43 으로 달랐음 / eval 에서 curriculum 배정·advance 끔) ·
+  V-c `5c5c06f` + 긴급 `6d002df`(**`enable_training_mode(True)` 누락 → 학습 0회**, 루프를 `rl_racing/algo/train_loop.py` 로 꺼내 실행 테스트, 시간 측정에 cuda synchronize) ·
+  V-d `84006d3` · V-e `029dff9` · V-f `14c605c` + `83af6a2`(env.device str) · V-g `2129643` · V-h `61a8e9d`. 서버: check_env ④–㉒ 전부 PASS, 스모크(네 비교군) 집계까지 통과
+  - **학습 시간(동기화 측정, G 8)**: env step 102.8 ms · update burn-in 79.6 ms(critic 8) · 이후 228.0 ms(+actor·α·CAPS 4 — actor 1회 약 37 ms) → burn-in 뒤 약 331 ms/step(3.0 step/s). ADR 최소 42k step ≈ 3.9 h, 상한 150k ≈ 13.8 h
+  - **평가 시간**: ①② 906대 env.step 410 ms + act 약 420 ms(StackDriver 차당 0.47 ms) → 3랩 약 38분·최악 84분 → **M 100 유지**. M 을 줄일 때는 네 비교군 모두 같이(배치·noise 짝 유지, 집계도 같은 배치 요구)
+  - **평가 모드 env.step 이 차 수에 선형**(151대 103 ms·453대 228 ms·906대 410 ms → 41 ms + 0.41 ms/대, 학습의 약 16배/대) — 겹침(제곱) 가설 기각. `--profile` 진단 중
+- **sweep 설계 S1·S2 (2026-11-16, 사용자)**: 본 학습 9회에 고정할 c·c₀·λ_T 를 정한다(w_d 는 곡선 축이라 sweep 대상 아님)
+  - **S1 = 셋 다**(c·c₀·λ_T) · **S2 = 한 번에 하나씩**: 기준점 (c, c₀, λ_T,steer) = (0.4, 1.0, 1.5), w_d 0.3. c {0.2, 0.8} · **c₀ {2, 4}**(사용자 — B6 저속 자살 하한 0.9 위, 4 ≈ 1 m/s 하한 4.1) · λ_T {0.5, 5}
+  - **보완(Claude, 동의)**: 기준점 seed 2개(101·102)로 seed 흔들림을 재고 그보다 큰 차이만 인정 · 기준점에서 바뀌는 계수가 둘 이상이면 그 조합 확인 학습 1회 → 8–9회.
+    sweep seed 100번대(본 학습 0–2 와 분리, Eimer 2023), 평가는 V 시험 집합과 다른 검증 집합(S3)
+  - **예산 2주(사용자)** = 336 h, 실사용 약 75% ≈ 250 h. 예정 sweep 70–90 h + 본 학습 90 h + 평가 약 10 h ≈ 170–190 h. 1회가 상한(약 14 h)까지 가면 빠듯 → 첫 sweep 학습 시간으로 다시 계산
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
