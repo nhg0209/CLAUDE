@@ -1761,6 +1761,20 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     예상 학습 한 step 약 320 ms 이상(3.1 step/s 이하), burn-in 뒤 update 시간 다시 잰다. **되돌림 기준**: Q overestimation 증가, 또는 critic loss 하락 중 return 정체·붕괴 → G = 4.
     문헌: FastTD3(num_updates 먼저 키우기, 저차원 action 에서 효과) · Raffin 2025(Isaac Lab SAC, 데이터가 싸서 replay ratio 를 고전 SAC 보다 낮게 ≈ 0.03/1024 env) · FastSAC(update 수 ablation, 수치 미확인).
     3단계 검토에서 짚은 가정: 학습이 update 에 막혀 있다는 근거는 아직 없음(G 4 vs 8 같은 시간 비교가 대안)
+  - ✅ D8 `ad81f13`: `--gradient-steps` 기본 8 + update 시간을 burn-in 전·후로 나눠 출력 (측정 결과 대기)
+- **평가 설계 1차 V1–V4 (2026-11-16, 사용자 동의)** — 비교군 4종(①②③'③)·두 축(랩타임·RMS e_d)은 「공유 인터페이스」 §6 그대로
+  - **V1 μ = {0.3, 0.5, 0.7, 0.9, 1.1} + 보조점 0.4** (학습 범위 균일 격자 — D1 에서 μ 는 "과제 분포"). 0.4 는 ① 고정 프로파일의 요구 μ(mapping_3 0.42, roboracer 0.36) 확인용, 그림에서 따로 표시
+  - **V2 raceline 만 + 새 맵 주행**. bump·merge 대응은 평가하지 않음 → 리포트 주장은 "raceline 추종" 으로 좁힘(경로 커리큘럼은 학습 장치).
+    새 맵은 평가 시점에 정함(저장소 후보는 `ifac_roboracer` 뿐 — 라인 κ 2.52 > 학습 맵 1.56 > κ_max 1.349). 학습·sweep·checkpoint 선택에 쓰지 않음.
+    PP lookahead 는 새 맵에서 다시 맞춤(사용자) — **② 만인지 ③'·③ base 까지인지는 그때 결정**(③'·③ 은 mapping_3 lookahead 위에서 학습 → base 를 바꾸면 성능 변화가 "새 트랙" 과 "base 변경" 으로 섞임)
+  - **V3 명목 차량 noise 0 1회 + 명목 차량 noise 중심값 N 50 + 무작위 차량(k = 1) M 100, 네 비교군 모두**. 같은 차량 목록·noise seed 로 짝지은 비교(common random numbers).
+    정밀도: 완주율 95% 구간 최대 ±0.14, 하위 10% = 100대 중 10번째. ①② 평가가 비교군당 2시간을 넘으면 ①② 의 M 을 같은 목록 앞 50대로
+  - **①② 센서 = ③ 과 같은 지연·noise** — 지금 ①② 는 `get_measurements()` 참값(지연·noise 0)을 받음(DR·noise 가 policy 모드에만: `dr_active = dr_enable and action_mode == "policy"`).
+    **제어기 입력(지연·noise)과 기록·지표(참값)를 분리**해야 함
+  - **V4 첫 실패 = DNF**(학습 종료 조건 3가지 + 시간 초과) — 프레임워크 결정 6(접촉 세고 계속)은 평가에서 폐기. 출발 정착을 command 모드에도 같게(미뤄 둔 항목). 학습 30 s vs 평가 3랩 약 54 s 는 시간이 obs 에 없어 문제없음
+  - **기록 추가**: 정규화된 κ 입력의 최대·clip 비율(새 맵에서 실패 원인 가르기)
+  - **필요 코드**: command 모드 DR · command 모드 센서 지연·noise(입력·기록 분리) · "차량 중심값 + noise" 평가 설정(지금은 k 하나가 폭·noise 를 같이 정함) · 평가 중 ADR k = 1 고정 · StackDriver 차 1대 시간 측정
+  - 문헌: Agarwal 2021(구간 추정) · RLPP(Ghignone 2025, PP residual·마찰 DR) · Hildisch 2025(실차 여러 마찰) · arXiv 2504.15414(분포 위 최악 성능이 실차를 더 잘 예측). 사용자 근거는 따로 적지 않음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
