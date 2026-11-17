@@ -1853,6 +1853,14 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     - 가설(미확인): ① actor 가 데이터가 거의 없는 포화 action(|a|→1)에서 critic 의 과대평가를 따라간다 ② buffer 가 488 step 만 기억해서 그 결과를 금방 잊고 같은 오류가 되풀이된다.
       "역주행 종료가 싼 탈출구" 가설은 약해짐(역주행 모드가 의도적 정지가 아니라 σ 폭등의 무작위 떨림). 벽 모드는 accel σ 와 무관(0.35–0.52) — 미설명
     - 다음: TensorBoard 추가 tag(σ steer·log_std clamp·gradient norm) + H3-diag `q_landscape.py`(spike 앞·중·뒤 checkpoint 에서 critic 의 Q 를 accel·steer 축을 따라 훑음)
+    - **추가 tag**: spike 때 **steer σ 도 같이** 1.5–4.9(평소 0.45–0.93) · log_std 상한(σ 7.39) 걸린 batch 4–68% · $\tanh\mu_{accel}$ 의 상태 간 std 0.71–0.87(평균 action 도 ±1 로) ·
+      actor gradient norm 1.3–2.5(평소 0.08–0.2, clip 1.0 이 40–100% update 에) · critic loss 0.05–0.11(평소 0.005–0.03). 벽 모드는 이 tag 들에 안 보임
+    - **100 step 단위 시간 순서**: spike 26번 / 30k(간격 중앙 1200, 300–1800 · 길이 중앙 300, 100–600 → 학습 시간의 약 1/4).
+      직전: critic loss 낮고 평평, Q1 평균 꾸준히 상승, σ 두 축 최저, **α_accel 이 이전 spike 뒤로 계속 줄어 최저**(0.00096·0.00069·0.00049).
+      시작: σ 두 축·actor gradient·acc_std 가 **같은 100 step 창에서 한꺼번에** 뜀, critic loss 는 그 창부터 오름(새 데이터). 뒤: Q1 약 3 하락(5.4 → 1.9), α 3–5배, 200–400 step 뒤 σ 정상
+      → "평균 μ 가 먼저 포화" 기각(acc_std 는 직전에 오히려 줄어듦), "buffer 488 step 이 주기를 정함" 기각(간격이 2.5배). critic 이 먼저 바뀌는지는 Q 지형으로 확인
+    - **α 톱니**: target −1 은 정상 policy 의 entropy(accel σ 0.3 → 0.13, steer σ 0.5–0.65 → 약 0.5)보다 낮아 정상 상태에서는 α 가 바닥 없이 줄고, 폭등으로 entropy 가 target 아래로 갈 때만 오른다
+    - Adam 은 gradient 크기를 나눠 없애므로 방향만 일정하면 update 마다 매개변수가 약 lr 씩 움직인다 — 100 step(actor update 400회) 안에 출력이 크게 바뀔 수 있고, gradient clip 1.0 은 이걸 막지 못한다
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
