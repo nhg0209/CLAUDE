@@ -1861,6 +1861,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       → "평균 μ 가 먼저 포화" 기각(acc_std 는 직전에 오히려 줄어듦), "buffer 488 step 이 주기를 정함" 기각(간격이 2.5배). critic 이 먼저 바뀌는지는 Q 지형으로 확인
     - **α 톱니**: target −1 은 정상 policy 의 entropy(accel σ 0.3 → 0.13, steer σ 0.5–0.65 → 약 0.5)보다 낮아 정상 상태에서는 α 가 바닥 없이 줄고, 폭등으로 entropy 가 target 아래로 갈 때만 오른다
     - Adam 은 gradient 크기를 나눠 없애므로 방향만 일정하면 update 마다 매개변수가 약 lr 씩 움직인다 — 100 step(actor update 400회) 안에 출력이 크게 바뀔 수 있고, gradient clip 1.0 은 이걸 막지 못한다
+    - **H3-diag Q 지형 `f95eaa6`** (spike 앞·중·뒤, 상태 7680개 — 직전 주행 policy 로 수집):
+      ① action 전 범위에서 Q 차이가 **0.02–0.1** 뿐(Q 자체 3.6–5.2 의 1–2%) — critic 이 action 을 거의 구분 못 함(dt 20 ms 에서 한 step action 의 영향이 작음, Tallec 2019 1901.09732: dt→0 이면 Q−V→0)
+      ② **모든 checkpoint·두 축에서 오목**(curv −0.014 ~ −0.049) → critic 은 σ 를 키우는 쪽을 보상한 적이 없다 → "critic 이 양 끝을 과대평가해 actor 가 퍼진다" **기각**
+      ③ 한쪽 끝으로 기운 경향(edge_argmax 47–82%)은 평소에도 같은 크기 — 방아쇠 아님
+      ④ spike 때 policy 평균이 critic 이 가리키는 쪽과 반대로 감(14500 steer: μ → −0.77 인데 Q 는 +1 쪽이 높음, 30000 도 같음) → spike 중 actor 는 critic 을 따르지 않는다
+      → 다음 가설: **Q 신호가 너무 작아 actor update 를 Q 가 아닌 항(CAPS temporal·spatial, entropy α log π)이 좌우한다** — H4-diag 로 항별 gradient 몫을 잰다
+    - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
