@@ -1843,6 +1843,16 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     - **sweep 은 이대로 못 쓴다**: 마지막 checkpoint 하나로 매기는 J 는 설정 차이보다 "마지막에 어느 모드였나" 에 좌우됨. skrl `best_agent.pt` 도 창 평균 보상으로 고른 것이라 같은 문제
     - (나) "새 env 첫 에피소드가 특별" 은 기각 — 주행 모드 weight 는 새 env 에서 86–98% 생존
   - 다음: 진동 주기·모드 순서 측정(30k step, checkpoint 500·기록 100 간격) → 원인 가설(역주행 종료의 싼 벌점 / actor 가 critic 보다 빨리 움직임·α 매우 작음 / critic 진동) 하나씩 → 1단계
+  - **진동 측정 `build/diag/osc_s101` (2026-11-17)**: base 설정 seed 101, 30k step(4.05 it/s), checkpoint 500·기록 100 간격, checkpoint 60개 rollout(학습 env·128대·10 s)
+    - **모드가 이웃 checkpoint(500 step = actor update 2000회)마다 바뀐다**, 정해진 순서 없음. 역주행 모드는 대개 checkpoint 하나로 끝나고 앞뒤는 주행·벽
+    - **역주행 모드 = accel σ(tanh 전) 폭등**: rollout reverse ≥ 15% 인 checkpoint 14개 전부 기록 σ_accel 1.16–5.51 (중앙값 3.0), 나머지는 0.16–0.85 (중앙값 0.36).
+      σ > 1 인 15개 중 14개가 역주행 모드. σ ≈ 3 이면 $\tanh(\mu+\sigma\epsilon)$ 가 거의 ±1 → 20 ms 마다 최대 가속·최대 제동이 무작위 → 출발 직후 떨다 뒤로 밀림(0.3–2 s 에 역주행)
+    - **α 가 못 막는 이유**: tanh 압착 Gaussian 의 entropy 는 σ 에 대해 단조가 아님(μ=0: σ 0.09 → −1.0, 0.3 → 0.13, 0.8–1 → 0.68 최대, 2 → 0.0, 3 → −1.1, 5 → −3.7).
+      target −1(차원별)은 좁은 policy(σ≈0.09)와 포화된 bang-bang(σ≈2.9) 둘 다 만족. 평소 σ 0.3 은 entropy 가 target 보다 높아 α 가 계속 줄어 0.001–0.01 → entropy 항이 사실상 꺼짐
+    - **replay buffer 가 담는 시간 = 488 step**(memory_size 488 × 4096 env = 2×10⁶) = actor update 약 1950회 — 모드가 바뀌는 간격(≤ 500 step)과 같은 크기
+    - 가설(미확인): ① actor 가 데이터가 거의 없는 포화 action(|a|→1)에서 critic 의 과대평가를 따라간다 ② buffer 가 488 step 만 기억해서 그 결과를 금방 잊고 같은 오류가 되풀이된다.
+      "역주행 종료가 싼 탈출구" 가설은 약해짐(역주행 모드가 의도적 정지가 아니라 σ 폭등의 무작위 떨림). 벽 모드는 accel σ 와 무관(0.35–0.52) — 미설명
+    - 다음: TensorBoard 추가 tag(σ steer·log_std clamp·gradient norm) + H3-diag `q_landscape.py`(spike 앞·중·뒤 checkpoint 에서 critic 의 Q 를 accel·steer 축을 따라 훑음)
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
 **구현 진행 (2026-11-06)** — A1–A6 완료. B 는 계획보다 잘게 나눠 커밋 번호가 계획 번호와 다르다
