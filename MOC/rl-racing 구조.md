@@ -1873,6 +1873,13 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
     - **정리**: 기각 — 평가 경로·평가 env · 새 env 첫 에피소드 · 평균 μ 먼저 포화(100 step 해상도) · buffer 길이가 주기 · critic 이 양 끝 과대평가 · 직전에 비-Q 항 우세.
       확인 — spike 는 100 step 안에 두 축·두 출력(μ·σ)이 한꺼번에 폭주, 직전엔 actor 가 Q 를 따르고 Q 는 오목·action 차이 1–2%·σ 줄어드는 중·α 최저.
       모름 — 방아쇠(500 step checkpoint 로는 마지막 100–200 step 이 안 보임) → 다음: 6000 step 짧은 학습(기록 10·checkpoint 50 간격)으로 시작 순간을 잡는다
+    - **10 step 해상도 `build/diag/osc_fine_s101`** (6000 step, 기록 10·checkpoint 50): 큰 spike 5개(1040·2090·3370·4200·5370 시작), 세 개를 시간 순서로 봄 — 셋 다 같은 순서:
+      ① 100 step 이상 전부터 actor gradient norm 이 천천히 2–3배(0.05 → 0.15), Q1 꾸준히 상승, α 감소, critic loss·accel σ·acc_std 는 평평
+      ② **steer σ 가 먼저 깜빡임** — 창마다 0.4 ↔ 1.3 으로 튀고 그때 steer log_std 상한 비율 0.6–5% → 일부 상태(몇 %)에서만 steer σ 가 상한(7.39)에 붙어 batch 평균을 흔듦.
+         첫 σ>1 이 5개 모두 steer 가 accel 보다 40–90 step 먼저
+      ③ 그 뒤 accel σ·acc_std·actor gradient 가 오르고 30–50 step 안에 두 축 모두 폭주 ④ Q1 하락·critic loss 상승·역주행은 폭주 **뒤**(결과)
+      → 폭주는 policy 전체에서 한 번에 시작하는 게 아니라 **일부 상태의 steer σ 에서 시작해 공유 layer 를 타고 퍼진다**.
+      가설: 그 상태는 steer 가 결과를 거의 안 바꾸는 상태(예: 저속 — $\dot\psi = v\tan\delta/L$)라 Q 가 steer 에 평평해 σ 를 붙잡는 힘이 없다 → H5-diag(상태별 σ 를 속도 등으로 묶어 봄)
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
