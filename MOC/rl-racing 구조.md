@@ -1867,6 +1867,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       ③ 한쪽 끝으로 기운 경향(edge_argmax 47–82%)은 평소에도 같은 크기 — 방아쇠 아님
       ④ spike 때 policy 평균이 critic 이 가리키는 쪽과 반대로 감(14500 steer: μ → −0.77 인데 Q 는 +1 쪽이 높음, 30000 도 같음) → spike 중 actor 는 critic 을 따르지 않는다
       → 다음 가설: **Q 신호가 너무 작아 actor update 를 Q 가 아닌 항(CAPS temporal·spatial, entropy α log π)이 좌우한다** — H4-diag 로 항별 gradient 몫을 잰다
+    - **H4-diag 항별 gradient 몫 `e8a78bb`**: 평소·spike 직전·뒤(14000·15000·24000·25000·29000·29500·30000) L_Q 몫 **0.84–1.00** (cos 0.55–0.98) /
+      spike 중(14500·24500) **CAPS temporal 몫 0.86·0.82**, L_Q 0.04·0.12 (CAPS temporal loss 0.007 → 0.03 — 이웃 action 이 크게 달라져서)
+      → "직전에 Q 가 아닌 항이 actor 를 끈다" **기각**. CAPS 는 이미 떨기 시작한 뒤에 커지는 결과(되돌리는 힘으로 추정). 출력별 gradient 열은 상태 수(7680)로 나뉜 값이라 0.0000 으로만 찍힘 — 표시 수정 필요
+    - **정리**: 기각 — 평가 경로·평가 env · 새 env 첫 에피소드 · 평균 μ 먼저 포화(100 step 해상도) · buffer 길이가 주기 · critic 이 양 끝 과대평가 · 직전에 비-Q 항 우세.
+      확인 — spike 는 100 step 안에 두 축·두 출력(μ·σ)이 한꺼번에 폭주, 직전엔 actor 가 Q 를 따르고 Q 는 오목·action 차이 1–2%·σ 줄어드는 중·α 최저.
+      모름 — 방아쇠(500 step checkpoint 로는 마지막 100–200 step 이 안 보임) → 다음: 6000 step 짧은 학습(기록 10·checkpoint 50 간격)으로 시작 순간을 잡는다
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
