@@ -1991,7 +1991,12 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
         보조: 큰 spike 0, bump 단계(마지막 3개 checkpoint) 완주·reverse, ADR 진행. 남은 문제(bump 저속 밀림·k 축)는 그다음 차례
       - 구현 `6954921` + device 수정 `ebdb6c6`(skrl 이 CPU 에서 index 를 뽑음). **비용 확인 (2026-11-19, `bench_update.py`, 다른 사용자 작업으로 GPU 94–96% 사용 중)**:
         update 평균 n=1 567 ms → n=5 744 ms (**1.31배**, 목표값 계산 한 번 더 + n step 구간 모으기 2.2 ms). 최대 할당 메모리 n=1 7.75 GiB · n=5 단독 7.86 GiB
-        (처음 잰 14.95 GiB 는 같은 프로세스에 앞 agent 의 replay buffer 7.07 GiB 가 남아 있던 측정 문제). 짧은 학습이 254 step 에서 "멈춘" 것은 GPU 경합으로 약 4배 느려진 것(≈ 1 it/s)
+        (처음 잰 14.95 GiB 는 같은 프로세스에 앞 agent 의 replay buffer 7.07 GiB 가 남아 있던 측정 문제)
+      - ⚠️ **정정 (2026-11-19, Claude)** — "254 step 에서 멈춘 것은 GPU 경합" 은 틀림. n=5 학습 세 번(600·400·30000 step)이 모두 254–256 step 에서 멈췄고(프로세스는 1시간 넘게 CPU 106% 로 살아 있음),
+        n=1 은 통과. **원인: NaN 누수** — skrl 2.1.0 `Memory.create_tensor` 가 float 텐서를 NaN 으로 채워 둔다("early misuse detection").
+        buffer 가 한 바퀴 감기기 전에는 쓰기 포인터 뒤 칸의 reward 가 NaN 이고, `nstep_returns` 가 그 칸을 `rewards * mask`(mask 0)로 지웠지만 IEEE 754 에서 NaN × 0 = NaN
+        → 목표값 NaN → 첫 update(4 step)부터 critic NaN. burn-in 동안은 actor 를 안 고쳐 드러나지 않다가 actor 갱신이 시작되는 254 step 에 actor·action 이 NaN → env(PhysX)가 멈춤(추정).
+        측정 도구는 buffer 를 가득 채워서, 기존 시험은 reward 를 전부 직접 넣어서 못 잡았다. 수정: `torch.where` 로 고름(F3-fix2)
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
