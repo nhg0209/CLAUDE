@@ -1989,6 +1989,9 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       - 편향: 데이터를 모은 policy 와 지금 policy 의 차이(보정 안 함, D4PG·Rainbow 와 같음; SACn 2025 는 importance sampling 으로 보정) — buffer 가 최근 488 step 이라 차이가 작은 편
       - **판정(새 방식, 30 s)**: 1500 간격 checkpoint 20개를 단계 0(중심값, 30 s, 128대)으로 → 후반 10개가 모두 완주 ≥ 90% 이고 이웃 사이 50%p 넘는 뒤집힘 0회. 같은 방식으로 fix2 기준값도 잼.
         보조: 큰 spike 0, bump 단계(마지막 3개 checkpoint) 완주·reverse, ADR 진행. 남은 문제(bump 저속 밀림·k 축)는 그다음 차례
+      - 구현 `6954921` + device 수정 `ebdb6c6`(skrl 이 CPU 에서 index 를 뽑음). **비용 확인 (2026-11-19, `bench_update.py`, 다른 사용자 작업으로 GPU 94–96% 사용 중)**:
+        update 평균 n=1 567 ms → n=5 744 ms (**1.31배**, 목표값 계산 한 번 더 + n step 구간 모으기 2.2 ms). 최대 할당 메모리 n=1 7.75 GiB · n=5 단독 7.86 GiB
+        (처음 잰 14.95 GiB 는 같은 프로세스에 앞 agent 의 replay buffer 7.07 GiB 가 남아 있던 측정 문제). 짧은 학습이 254 step 에서 "멈춘" 것은 GPU 경합으로 약 4배 느려진 것(≈ 1 it/s)
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
