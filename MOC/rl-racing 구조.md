@@ -2000,6 +2000,15 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
         - **서버 확인**: fix3_s101 TB — `Critic loss`·`Q1 (mean)` 100·200 step 모두 nan, `n-step mean length` 3.94·4.65(목표값 계산 경로는 돌았음) → 원인 확정
         - ✅ **F3-fix2 `6274b29`** (새 시험 3개 수정 전 FAIL → 후 PASS). 서버 400 step smoke 통과: NaN 없음, update(burn-in 뒤) 201 ms (n=1 145 ms 의 1.39배),
           4.13 it/s, 추정 최대 전체 사용 11.65 GiB, n-step 평균 길이 1.03(8 step, 쓰기 포인터에 잘림) → 4.74(400 step)
+      - **F3 판정 결과 (2026-11-19, fix3_s101 30k, 3시간 15분 2.56 it/s, 11.65 GiB)** — **주 기준 불통과**: 후반 완주 ≥ 90% fix2 6/10 → fix3 6/10, 50%p 넘는 뒤집힘 5 → 5 (똑같음)
+        - fix3 단계 0 완주율(1.5k 간격): 0 38 98 100 98 99 100 98 **0** 100 98 99 **0** 97 89 100 52 74 99 99 — 나쁜 checkpoint 가 양옆이 좋은 **고립된 하나**(13.5k, 19.5k)
+        - **ADR 은 크게 좋아짐**: path 단계 2 를 12.1k 에 열고 유지(fix2 는 12.1k 에 0 으로 되돌아간 뒤 1 에 머묾) · μ_lo 0.69 (fix2 0.85) · 측정 성공률 중앙 0.87 (fix2 0.62)
+        - critic loss 중앙 0.037 (fix2 0.010, n-step 목표값 분산), 1000 step 뒤 큰 spike 없음(상위 0.07). σ steer 중앙 **0.74** (fix2 0.23), 상위값 29k 에 1.0 → 지켜볼 것
+        - ⚠️ 정정: `adr_dump.py` 의 k 열은 `.0f`(정수 반올림)라 0.1 단위 k 가 0.5 아래면 0 으로 보임 → "fix2 의 k 축이 0 에 멈춤" 은 출력 형식 탓일 수 있음. 정확한 값 다시 확인
+        - **모순**: 같은 시각 ADR 측정 env(DR 켬, 경계 조건, 30 s 에피소드, 성공 = 실패 없이 time_out — 판정과 같은 정의)는 0.85 인데 고정한 checkpoint 는 더 쉬운 단계 0 에서 0%
+        - **가설 H9 (policy churn)**: actor 는 env step 마다 4번 갱신되므로, 학습 중의 30 s 에피소드(1500 step)는 policy 약 6000 판을 거쳐 달린다. 그래서 잠깐 나쁜 판은 곧 바뀐다.
+          고정한 checkpoint 는 그 한 판으로 30 s 를 달리므로, 한 코너(H8: S자 s 4 의 residual 부호)에서 틀린 판이면 매 바퀴 거기서 부딪힌다.
+          문헌: Schaul 2022 *The Phenomenon of Policy Churn*, Tang & Berseth 2024 CHAIN(churn 감소). 검증: 나쁜 checkpoint 양옆을 500 간격으로 재서 나쁜 구간이 좁은지 본다
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
