@@ -1997,6 +1997,7 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
         buffer 가 한 바퀴 감기기 전에는 쓰기 포인터 뒤 칸의 reward 가 NaN 이고, `nstep_returns` 가 그 칸을 `rewards * mask`(mask 0)로 지웠지만 IEEE 754 에서 NaN × 0 = NaN
         → 목표값 NaN → 첫 update(4 step)부터 critic NaN. burn-in 동안은 actor 를 안 고쳐 드러나지 않다가 actor 갱신이 시작되는 254 step 에 actor·action 이 NaN → env(PhysX)가 멈춤(추정).
         측정 도구는 buffer 를 가득 채워서, 기존 시험은 reward 를 전부 직접 넣어서 못 잡았다. 수정: `torch.where` 로 고름(F3-fix2)
+        - **서버 확인**: fix3_s101 TB — `Critic loss`·`Q1 (mean)` 100·200 step 모두 nan, `n-step mean length` 3.94·4.65(목표값 계산 경로는 돌았음) → 원인 확정
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
