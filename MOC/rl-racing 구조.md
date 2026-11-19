@@ -1980,6 +1980,15 @@ headless 물리(학습)는 영향 없음. `render_check.py` 는 드라이버가 
       **S자 구간(s 0–10: 왼쪽 헤어핀 끝 → s≈4.8 오른쪽 → 왼쪽)에서 PP 만으로는 s 4 에서 바깥으로 +0.26 m 밀림** — 29500 의 residual 은 −0.15 로 되돌리지만 s 8 에서 −0.33 으로 넘침(PP 보다 나쁨),
       **30000 은 같은 자리에서 +0.13 — 부호가 반대** → +0.23 → 벽. 같은 속도, 500 step 차이로 한 결정 지점의 보정 부호가 뒤집힘.
       → 지연(조향·IMU)이 있는 S자에서 보정 시점이 중요한 자리인데 Q 의 action 차이가 작아(1–2%) actor 의 선택이 쉽게 뒤집힌다 — 앞서 찾은 근본 원인(작은 action 신호)과 같은 줄기
+    - **결정 F3 (2026-11-19)** — 1단계 (가) 결정 주기 낮춤 / (나) n-step return / (다) weight 평균(평가용) / (라) e₀ 줄임 / (마) 더 오래 학습 중, 사용자가 "알아서" 위임 → Claude 결정:
+      **(나) n-step return, n = 5** — 기준: ① 찾은 메커니즘(S자 s 4 의 조향과 s 6–8 충돌 사이 약 25 step, 작은 action 신호)을 직접 겨눔 ② env·평가·실차 제어 주기·CAPS 를 안 바꿈
+      ③ 구현 중간 크기 ④ 연속 제어 선례(D4PG n=5, Rainbow n=3, 둘 다 보정 없이). (가)는 가장 근본적이지만 바뀌는 범위가 커서 보류, (라)는 e₀ 곡선(sweep)에서 다룰 값을 미리 정해 버림,
+      (다)는 학습을 안 고치고 부호 반대 policy 평균은 보정을 0 으로 만들 위험 → sweep 평가 방식 재설계 때 "마지막 몇 checkpoint 점수의 중앙값" 등으로 다룸, (마)는 본 학습에서 자연히 확인.
+      - 식: $y = \sum_{k=0}^{m-1}\gamma^k r_{t+k} + \gamma^{m}\,\mathbb 1[\text{bootstrap}]\,(\min Q' - \alpha\log\pi)(s'_{t+m-1})$, m = n 또는 처음 done 까지. terminated 면 bootstrap 없음,
+        truncated 면 그 step 의 next_obs(final_obs)에서 bootstrap. 중간 step 의 entropy 항은 넣지 않음(α 0.0002–0.002 라 무시 가능). n=1 이면 지금과 bit 동일
+      - 편향: 데이터를 모은 policy 와 지금 policy 의 차이(보정 안 함, D4PG·Rainbow 와 같음; SACn 2025 는 importance sampling 으로 보정) — buffer 가 최근 488 step 이라 차이가 작은 편
+      - **판정(새 방식, 30 s)**: 1500 간격 checkpoint 20개를 단계 0(중심값, 30 s, 128대)으로 → 후반 10개가 모두 완주 ≥ 90% 이고 이웃 사이 50%p 넘는 뒤집힘 0회. 같은 방식으로 fix2 기준값도 잼.
+        보조: 큰 spike 0, bump 단계(마지막 3개 checkpoint) 완주·reverse, ADR 진행. 남은 문제(bump 저속 밀림·k 축)는 그다음 차례
     - 곁가지 발견: `log_alpha` 가 checkpoint 에 저장되지 않음(alpha_optimizer 상태만) — 이어서 학습하면 α 가 0.01 로 되돌아감. 지금 진단에는 영향 없음
 - 그다음 **평가 설계**(1–3단계) → 평가 스크립트 → 본 학습·sweep(w_d, c, c₀, λ_T)
 
